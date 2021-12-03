@@ -30,6 +30,21 @@ BTreeIndex::BTreeIndex(const std::string& relationName,
                        BufMgr* bufMgrIn,
                        const int attrByteOffset,
                        const Datatype attrType) {
+std :: ostringstream indexStr;
+indexStr << relationName << '.' << attrByteOffset;
+outIndexName = indexStr.str();
+Page * headerPage;
+file = new BlobFile (outIndexName, false);
+headerPageNum = file->getFirstPageNo();
+
+bufMgrIn->readPage(file,headerPageNum,headerPage);
+IndexMetaInfo *meta = (IndexMetaInfo *)headerPage;
+if (relationName != meta->relationName) throw BadIndexInfoException("Index doesn't exist.");
+if (attributeType != meta->attrType) throw BadIndexInfoException("Index doesn't exist.");
+if (attrByteOffset != meta->attrByteOffset) throw BadIndexInfoException("Index  doesn't exist.");
+
+// bufMgrIn->readPage()                   
+// if (relationName != meta)
 }
 
 // -----------------------------------------------------------------------------
