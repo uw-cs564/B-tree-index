@@ -25,26 +25,28 @@ namespace badgerdb {
 // BTreeIndex::BTreeIndex -- Constructor
 // -----------------------------------------------------------------------------
 
-BTreeIndex::BTreeIndex(const std::string& relationName,
-                       std::string& outIndexName,
-                       BufMgr* bufMgrIn,
+BTreeIndex::BTreeIndex(const std::string &relationName,
+                       std::string &outIndexName,
+                       BufMgr *bufMgrIn,
                        const int attrByteOffset,
                        const Datatype attrType) {
-std :: ostringstream indexStr;
-indexStr << relationName << '.' << attrByteOffset;
-outIndexName = indexStr.str();
-Page * headerPage;
-file = new BlobFile (outIndexName, false);
-headerPageNum = file->getFirstPageNo();
+    // Creating the index file name, taken from the project specification
+    std ::ostringstream indexStr;
+    indexStr << relationName << '.' << attrByteOffset;
+    outIndexName = indexStr.str();
 
-bufMgrIn->readPage(file,headerPageNum,headerPage);
-IndexMetaInfo *meta = (IndexMetaInfo *)headerPage;
-if (relationName != meta->relationName) throw BadIndexInfoException("Index doesn't exist.");
-if (attributeType != meta->attrType) throw BadIndexInfoException("Index doesn't exist.");
-if (attrByteOffset != meta->attrByteOffset) throw BadIndexInfoException("Index  doesn't exist.");
+    Page *headerPage;
+    file = new BlobFile(outIndexName, false);
+    headerPageNum = file->getFirstPageNo();
 
-// bufMgrIn->readPage()                   
-// if (relationName != meta)
+    bufMgrIn->readPage(file, headerPageNum, headerPage);
+    IndexMetaInfo *meta = (IndexMetaInfo *)headerPage;
+    if (relationName != meta->relationName) throw BadIndexInfoException("Index doesn't exist.");
+    if (attributeType != meta->attrType) throw BadIndexInfoException("Index doesn't exist.");
+    if (attrByteOffset != meta->attrByteOffset) throw BadIndexInfoException("Index  doesn't exist.");
+
+    // bufMgrIn->readPage()
+    // if (relationName != meta)
 }
 
 // -----------------------------------------------------------------------------
@@ -58,16 +60,16 @@ BTreeIndex::~BTreeIndex() {
 // BTreeIndex::insertEntry
 // -----------------------------------------------------------------------------
 
-void BTreeIndex::insertEntry(const void* key, const RecordId rid) {
+void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
 }
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::startScan
 // -----------------------------------------------------------------------------
 
-void BTreeIndex::startScan(const void* lowValParm,
+void BTreeIndex::startScan(const void *lowValParm,
                            const Operator lowOpParm,
-                           const void* highValParm,
+                           const void *highValParm,
                            const Operator highOpParm) {
 }
 
@@ -75,7 +77,7 @@ void BTreeIndex::startScan(const void* lowValParm,
 // BTreeIndex::scanNext
 // -----------------------------------------------------------------------------
 
-void BTreeIndex::scanNext(RecordId& outRid) {
+void BTreeIndex::scanNext(RecordId &outRid) {
 }
 
 // -----------------------------------------------------------------------------
