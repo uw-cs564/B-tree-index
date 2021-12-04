@@ -30,21 +30,41 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
                        BufMgr *bufMgrIn,
                        const int attrByteOffset,
                        const Datatype attrType) {
+    // initialize variables
+    bufMgr = bufMgrIn;
     // Creating the index file name, taken from the project specification
     std ::ostringstream indexStr;
     indexStr << relationName << '.' << attrByteOffset;
     outIndexName = indexStr.str();
-
+    // Since meta contains information about the first page, we have to get the header page
+    // but also have to see if the file exists.
+    try {
     Page *headerPage;
     file = new BlobFile(outIndexName, false);
     headerPageNum = file->getFirstPageNo();
 
-    bufMgrIn->readPage(file, headerPageNum, headerPage);
+    // After we get the first page, we use meta's info to compare with the given info to see if it matches.
+    bufMgr->readPage(file, headerPageNum, headerPage);
     IndexMetaInfo *meta = (IndexMetaInfo *)headerPage;
     if (relationName != meta->relationName) throw BadIndexInfoException("Index doesn't exist.");
     if (attributeType != meta->attrType) throw BadIndexInfoException("Index doesn't exist.");
     if (attrByteOffset != meta->attrByteOffset) throw BadIndexInfoException("Index  doesn't exist.");
-
+    } catch (FileNotFoundException) { // This means file doesn't exist so create a file.
+        
+        file = new BlobFile(outIndexName, true);
+        FileScan FS (relationName,bufMgr);
+        // get every tuple from the relation and load into the new file.
+        while (1) { // get all rids that meet the predicate and break if the end of the file of relationName is reached.
+            try {
+            RecordId rid;
+            // get 
+            FS.scanNext(rid);
+            insertEntry(FS.getRecord().c_str(),rid);
+            }catch (EndOfFileException EOFE) {
+                break;
+            }
+         }
+    }
     // bufMgrIn->readPage()
     // if (relationName != meta)
 }
@@ -54,6 +74,10 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 // -----------------------------------------------------------------------------
 
 BTreeIndex::~BTreeIndex() {
+// The destructor should clear state variables, unpin pinned pages, and flush index file,
+// and deletes the file object.
+bufMgr->flushFile(file);
+delete file;
 }
 
 // -----------------------------------------------------------------------------
