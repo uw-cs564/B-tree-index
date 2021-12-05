@@ -39,31 +39,31 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
     // Since meta contains information about the first page, we have to get the header page
     // but also have to see if the file exists.
     try {
-    Page *headerPage;
-    file = new BlobFile(outIndexName, false);
-    headerPageNum = file->getFirstPageNo();
+        Page *headerPage;
+        file = new BlobFile(outIndexName, false);
+        headerPageNum = file->getFirstPageNo();
 
-    // After we get the first page, we use meta's info to compare with the given info to see if it matches.
-    bufMgr->readPage(file, headerPageNum, headerPage);
-    IndexMetaInfo *meta = (IndexMetaInfo *)headerPage;
-    if (relationName != meta->relationName) throw BadIndexInfoException("Index doesn't exist.");
-    if (attributeType != meta->attrType) throw BadIndexInfoException("Index doesn't exist.");
-    if (attrByteOffset != meta->attrByteOffset) throw BadIndexInfoException("Index  doesn't exist.");
-    } catch (FileNotFoundException) { // This means file doesn't exist so create a file.
-        
+        // After we get the first page, we use meta's info to compare with the given info to see if it matches.
+        bufMgr->readPage(file, headerPageNum, headerPage);
+        IndexMetaInfo *meta = (IndexMetaInfo *)headerPage;
+        if (relationName != meta->relationName) throw BadIndexInfoException("Index doesn't exist.");
+        if (attributeType != meta->attrType) throw BadIndexInfoException("Index doesn't exist.");
+        if (attrByteOffset != meta->attrByteOffset) throw BadIndexInfoException("Index  doesn't exist.");
+    } catch (FileNotFoundException) {  // This means file doesn't exist so create a file.
+
         file = new BlobFile(outIndexName, true);
-        FileScan FS (relationName,bufMgr);
+        FileScan FS(relationName, bufMgr);
         // get every tuple from the relation and load into the new file.
-        while (1) { // get all rids that meet the predicate and break if the end of the file of relationName is reached.
+        while (1) {  // get all rids that meet the predicate and break if the end of the file of relationName is reached.
             try {
-            RecordId rid;
-            // get 
-            FS.scanNext(rid);
-            insertEntry(FS.getRecord().c_str(),rid);
-            }catch (EndOfFileException EOFE) {
+                RecordId rid;
+                // get
+                FS.scanNext(rid);
+                insertEntry(FS.getRecord().c_str(), rid);
+            } catch (EndOfFileException EOFE) {
                 break;
             }
-         }
+        }
     }
     // bufMgrIn->readPage()
     // if (relationName != meta)
@@ -74,10 +74,10 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 // -----------------------------------------------------------------------------
 
 BTreeIndex::~BTreeIndex() {
-// The destructor should clear state variables, unpin pinned pages, and flush index file,
-// and deletes the file object.
-bufMgr->flushFile(file);
-delete file;
+    // The destructor should clear state variables, unpin pinned pages, and flush index file,
+    // and deletes the file object.
+    bufMgr->flushFile(file);
+    delete file;
 }
 
 // -----------------------------------------------------------------------------
@@ -95,6 +95,8 @@ void BTreeIndex::startScan(const void *lowValParm,
                            const Operator lowOpParm,
                            const void *highValParm,
                            const Operator highOpParm) {
+    if (scanExecuting) {
+    }
 }
 
 // -----------------------------------------------------------------------------
