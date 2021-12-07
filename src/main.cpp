@@ -348,6 +348,7 @@ int intScan(BTreeIndex *index, int lowVal, Operator lowOp, int highVal, Operator
     int numResults = 0;
 
     try {
+        std::cout << "Start scan" << std::endl;
         index->startScan(&lowVal, lowOp, &highVal, highOp);
     } catch (const NoSuchKeyFoundException &e) {
         std::cout << "No Key Found satisfying the scan criteria." << std::endl;
