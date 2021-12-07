@@ -136,6 +136,8 @@ void BTreeIndex::startScan(const void *lowValParm,
                            const Operator lowOpParm,
                            const void *highValParm,
                            const Operator highOpParm) {
+    if (scanExecuting) {
+    }
 }
 
 // -----------------------------------------------------------------------------

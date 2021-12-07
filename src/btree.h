@@ -41,13 +41,13 @@ enum Operator {
 /**
  * @brief Number of key slots in B+Tree leaf for INTEGER key.
  */
-//                                                  sibling ptr             key               rid
+//                                              sibling ptr          key             rid
 const int INTARRAYLEAFSIZE = (Page::SIZE - sizeof(PageId)) / (sizeof(int) + sizeof(RecordId));
 
 /**
  * @brief Number of key slots in B+Tree non-leaf for INTEGER key.
  */
-//                                                     level     extra pageNo                  key       pageNo
+//                                                  level      extra pageNo           key            pageNo
 const int INTARRAYNONLEAFSIZE = (Page::SIZE - sizeof(int) - sizeof(PageId)) / (sizeof(int) + sizeof(PageId));
 
 /**
