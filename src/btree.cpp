@@ -124,7 +124,112 @@ BTreeIndex::~BTreeIndex() {
 // -----------------------------------------------------------------------------
 
 void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
+    //if rootNode exists ??? 
+    //check size of RootNode if it is less than NODEINTARRAY size 
+    if(rootNode->keyArray.size < INTARRAYNONLEAFSIZE){
+        //create page to insert 
+        Page *newPage;
+        //should I make this a constant value? 
+        int rootNumber = 2; 
+        this -> bufMgr -> readPage(this->file, rootNumber, newPage);
+    }
+    //call create new node 
+   
+
+    //case 2 - traverse tree till you find a node to insert into  
+        //if not full - insert into tree 
+        //else call split node 
+
+    
+
+
 }
+
+
+// -----------------------------------------------------------------------------
+// BTreeIndex::insertIntoLeaf
+//this method is for when inserting into a leaf - checks where it fits 
+//if no space, finds where to split and calls split 
+// -----------------------------------------------------------------------------
+void BTreeIndex::insertIntoLeaf(const int PageId, NonLeafNodeInt currNode){
+
+        //if less than first one 
+        
+        //split on index 1 (end key)
+        //unpin record 1 
+
+        //if less than second one 
+        //split on index 1 
+        //unpin record 2
+
+        //if less than 3rd,4th, or > 4th 
+        //split on index 2 
+        //unpin record 3
+
+        //else 
+        //insert after 4th 
+
+        //returns the new order for leaf 
+        //if it is greater than or equal too int array size 
+        //call split method on that Node 
+
+}
+// -----------------------------------------------------------------------------
+// BTreeIndex::create new Root
+//this method is for when to create a new Root node while propograting  
+// -----------------------------------------------------------------------------
+void BTreeIndex::createNewRoot(const int PageId Page, const bool aboveNonLeaf,  const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild ){
+    //root page should always be 2 
+    PageId rootId = 2;
+    //create non lead node for root 
+    NonLeafNodeInt rootNode;
+    bufMgr->readPage(this -> file,rootId,rootNode);
+    //update/create new non leaf node 
+    //level = 0 unless right above NonLeafNode 
+    if (aboveNonLeaf){
+        rootNode -> level = 1; 
+    }
+    else{
+        rootNode -> level = 0; 
+    }
+    rootNode -> keyArray.add(*key);
+    //add left child 
+    rootNode -> pageNoArray[0] = leftChild; 
+    //add right child 
+    rootNode -> pageNoArray[1] =  rightChild; 
+    rootNode -> spaceAvail--; 
+    //do we need to update the meta? 
+
+}
+// -----------------------------------------------------------------------------
+// BTreeIndex::splitLeafNodes -  None Leaf nodes   
+// -----------------------------------------------------------------------------
+void BTreeIndex::splitNonLeafNode(const PageNo Page, NonLeafNodeInt currNode, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild){
+    PageNo pageId = Page; 
+     //reads the page to split 
+    this.bufMgr->rootNode.readPage(this -> file,pageId,currNode);
+    //Reads the parent node 
+    NonLeafNodeInt parent;
+    //read the parent page 
+    this.bufMgr->rootNode.readPage(this -> file,currNode->parentPage,parent);
+    //call insert into node 
+    insertIntoLeaf(currNode->parentPage, parent )
+    //remove node? 
+
+}   
+// -----------------------------------------------------------------------------
+// BTreeIndex::splitNode -  Leaf nodes   
+// -----------------------------------------------------------------------------
+void BTreeIndex::splitLeafNode(const void *key, const RecordId rid){
+    //left biased 
+    
+    
+
+        
+
+        
+}
+
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::searchNode
