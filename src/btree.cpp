@@ -108,7 +108,6 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 BTreeIndex::~BTreeIndex() {
 // The destructor should end any scan, clear state variables, unpin pinned pages, and flush index file,
 // and deletes the file object.
-bufMgr->unPinPage(file, rootPageNum, true);
 if (scanExecuting) {
     try {
         endScan();
