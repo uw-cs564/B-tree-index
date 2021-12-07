@@ -88,6 +88,13 @@ void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
 }
 
 // -----------------------------------------------------------------------------
+// BTreeIndex::searchNode
+// -----------------------------------------------------------------------------
+void BTreeIndex::searchNode(const void *key, badgerdb::PageId pid) {
+    
+}
+
+// -----------------------------------------------------------------------------
 // BTreeIndex::startScan
 // -----------------------------------------------------------------------------
 
@@ -95,8 +102,26 @@ void BTreeIndex::startScan(const void *lowValParm,
                            const Operator lowOpParm,
                            const void *highValParm,
                            const Operator highOpParm) {
-    if (scanExecuting) {
+    if ((lowOpParm != 'GT' && lowOpParm != 'GTE') ||
+        (highOpParm != 'LT' && highOpParm != 'LTE')) {
+        throw BadOpcodesException();
     }
+
+    lowOp = lowOpParm;
+    highOp = highOpParm;
+
+    // Have to cast to int pointer first and then reference to get int value
+    lowValInt = *(int *)lowValParm;
+    highValInt = *(int *)highOpParm;
+
+    // Make sure the parameter makes sense
+    if (lowValInt > highValInt) throw BadScanrangeException();
+
+    // only one scan at a time
+    if (scanExecuting) endScan();
+
+    /** ########### begin scan ########### */
+    scanExecuting = true;
 }
 
 // -----------------------------------------------------------------------------
