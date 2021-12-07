@@ -51,51 +51,50 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
     // Since meta contains information about the first page, we have to get the header page
     // but also have to see if the file exists.
     try {
-    file = new BlobFile(outIndexName, false);
-    headerPageNum = file->getFirstPageNo();
+        file = new BlobFile(outIndexName, false);
+        headerPageNum = file->getFirstPageNo();
 
-    // After we get the first page, we use meta's info to compare with the given info to see if it matches.
-    bufMgr->readPage(file, headerPageNum, metaPage);
-    IndexMetaInfo *meta = (IndexMetaInfo *) metaPage;
-    if (relationName != meta->relationName) throw BadIndexInfoException("Index doesn't exist.");
-    if (attributeType != meta->attrType) throw BadIndexInfoException("Index doesn't exist.");
-    if (attrByteOffset != meta->attrByteOffset) throw BadIndexInfoException("Index  doesn't exist.");
+        // After we get the first page, we use meta's info to compare with the given info to see if it matches.
+        bufMgr->readPage(file, headerPageNum, metaPage);
+        IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
+        if (relationName != meta->relationName) throw BadIndexInfoException("Index doesn't exist.");
+        if (attributeType != meta->attrType) throw BadIndexInfoException("Index doesn't exist.");
+        if (attrByteOffset != meta->attrByteOffset) throw BadIndexInfoException("Index  doesn't exist.");
 
-    // unpin headerPage because we are finished with it but didn't modify it.
-    bufMgr->unPinPage(file, headerPageNum, false);    
+        // unpin headerPage because we are finished with it but didn't modify it.
+        bufMgr->unPinPage(file, headerPageNum, false);
 
-    } catch (FileNotFoundException) { // This means file doesn't exist so create a file.
-        
+    } catch (FileNotFoundException) {  // This means file doesn't exist so create a file.
+
         file = new BlobFile(outIndexName, true);
 
         // create a meta page for the new index.
         bufMgr->allocPage(file, headerPageNum, metaPage);
         bufMgr->allocPage(file, rootPageNum, rootPage);
-        IndexMetaInfo *meta = (IndexMetaInfo *) metaPage;
-        strncpy(meta->relationName, relationName.c_str(),20);
+        IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
+        strncpy(meta->relationName, relationName.c_str(), 20);
         meta->attrType = attrType;
         meta->rootPageNo = rootPageNum;
 
         // Create the root.
-        bufMgr->allocPage(file,rootPageNum,rootPage);
-        NonLeafNodeInt *root = (NonLeafNodeInt *) rootPage;
+        bufMgr->allocPage(file, rootPageNum, rootPage);
+        NonLeafNodeInt *root = (NonLeafNodeInt *)rootPage;
 
-        FileScan FS (relationName,bufMgr);
+        FileScan FS(relationName, bufMgr);
         // get every tuple from the relation and load into the new file.
         RecordId rid;
-        while (true) { // get all rids that meet the predicate and break if the end of the file of relationName is reached.
+        while (true) {  // get all rids that meet the predicate and break if the end of the file of relationName is reached.
             try {
-            // get 
-            FS.scanNext(rid);
-            insertEntry(FS.getRecord().c_str() + attrByteOffset,rid);
-            }catch (EndOfFileException EOFE) {
+                // get
+                FS.scanNext(rid);
+                insertEntry(FS.getRecord().c_str() + attrByteOffset, rid);
+            } catch (EndOfFileException EOFE) {
                 break;
-                
             }
-         }
-         // finished with the meta page and root page and we did modify it.
-         bufMgr->unPinPage(file, headerPageNum, true);
-         bufMgr->unPinPage(file, rootPageNum, true);
+        }
+        // finished with the meta page and root page and we did modify it.
+        bufMgr->unPinPage(file, headerPageNum, true);
+        bufMgr->unPinPage(file, rootPageNum, true);
     }
     // bufMgrIn->readPage()
     // if (relationName != meta)
@@ -106,18 +105,18 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 // -----------------------------------------------------------------------------
 
 BTreeIndex::~BTreeIndex() {
-// The destructor should end any scan, clear state variables, unpin pinned pages, and flush index file,
-// and deletes the file object.
-if (scanExecuting) {
-    try {
-        endScan();
-    } catch (ScanNotInitializedException) {
-        std::cout << "No scan has been initialized.";
+    // The destructor should end any scan, clear state variables, unpin pinned pages, and flush index file,
+    // and deletes the file object.
+    if (scanExecuting) {
+        try {
+            endScan();
+        } catch (ScanNotInitializedException) {
+            std::cout << "No scan has been initialized.";
+        }
     }
-}
-scanExecuting = false;
-bufMgr->flushFile(file);
-delete file;
+    scanExecuting = false;
+    bufMgr->flushFile(file);
+    delete file;
 }
 
 // -----------------------------------------------------------------------------
@@ -131,7 +130,6 @@ void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
 // BTreeIndex::searchNode
 // -----------------------------------------------------------------------------
 void BTreeIndex::searchNode(const void *key, badgerdb::PageId pid) {
-    
 }
 
 // -----------------------------------------------------------------------------
