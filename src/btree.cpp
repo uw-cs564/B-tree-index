@@ -156,12 +156,13 @@ void BTreeIndex::insertIntoNode(const int PageId, NonLeafNodeInt currNode, const
             int tempRid = currNode->ridArray[size - i - 1];
             currNode->ridArray[size - i - 1] = currNode->keyArray[size - i];
             currNode->ridArray[size - i] = temp;
+            //decrement the availSpace
+            currNode->availSpace--; 
         }
         
 
     }
     
-}
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::insertIntoLeafNode
@@ -182,7 +183,15 @@ void BTreeIndex::insertIntoLeafNode(const RecordId,  const void *key, NonLeafNod
         for(int i = 0; i < numOfLeafNodes; i++){
             //read the page 
             bufMgr->readPage(this->file,currNode->pageNoArray[i],leafNode);
-            if (leafNode->keyArray[keyArray.size - 1])
+            //check if the key values is than the last value of the node
+            if (*key < leafNode->keyArray[keyArray.size - 1]){
+                //call insert - to insert into correct postion of page 
+                insertIntoNode(currNode->pageNoArray[i], currNode, *key) {
+                //leave fir loop
+                break;
+                //break out of while loop
+                found = true;
+            }
         }
         
 
@@ -197,7 +206,7 @@ void BTreeIndex::insertIntoLeafNode(const RecordId,  const void *key, NonLeafNod
 // BTreeIndex::create new Root
 //this method is for when to create a new Root node while propograting
 // -----------------------------------------------------------------------------
-void BTreeIndex::createNewRoot(const int PageId Page, const bool aboveNonLeaf, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild) {
+void BTreeIndex::createNewRoot(const int PageId Page,  const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild) {
     //root page should always be 2
     PageId rootId = 2;
     //create non lead node for root
@@ -232,6 +241,7 @@ void BTreeIndex::splitNonLeafNode(const PageNo Page, NonLeafNodeInt currNode, co
     //call insert into node
     insertIntoLeaf(currNode->parentPage, parent)
     //remove node?
+    
 }
 // -----------------------------------------------------------------------------
 // BTreeIndex::splitNode -  Leaf nodes
