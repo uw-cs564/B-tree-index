@@ -243,7 +243,14 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid) {
 // -----------------------------------------------------------------------------
 // BTreeIndex::searchNode
 // -----------------------------------------------------------------------------
-void BTreeIndex::searchNode(const void *key, badgerdb::PageId pid) {
+void BTreeIndex::searchNode(const void *key, PageId &pid, PageId currentId, PageId parent) {
+    // Reads the content of currentId into curPage
+    Page *curPage;
+    bufMgr->readPage(file, currentId, curPage);
+
+    NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
+
+    
 }
 
 // -----------------------------------------------------------------------------
