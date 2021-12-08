@@ -140,6 +140,11 @@ struct NonLeafNodeInt {
     int level;
 
     /**
+     * Parent node's id
+     */
+    PageId parentId;
+
+    /**
      * Stores keys.
      */
     int keyArray[INTARRAYNONLEAFSIZE];
@@ -285,7 +290,7 @@ class BTreeIndex {
      * @param key   the void pointer of the key to be searched
      * @param pid   Page ID of the result
      */
-    void BTreeIndex::searchNode(const void* key, badgerdb::PageId pid);
+    void BTreeIndex::searchNode(const void* key, PageId& pid, PageId currentId, PageId parent);
 
    public:
     /**
