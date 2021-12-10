@@ -126,118 +126,108 @@ BTreeIndex::~BTreeIndex() {
 void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
     //
     if (rootNode) {
-        //call insert 
-    
+        // call insert
     }
-    
 
-    //case 2 - traverse tree till you find a node to insert into
-    //if not full - insert into tree
-    //else call split node
+    // case 2 - traverse tree till you find a node to insert into
+    // if not full - insert into tree
+    // else call split node
 }
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::insertIntoNode
-//this method is for when inserting into a leaf - checks where it fits
-//if no space, finds where to split and calls split
+// this method is for when inserting into a leaf - checks where it fits
+// if no space, finds where to split and calls split
 // -----------------------------------------------------------------------------
 void BTreeIndex::insertIntoNode(const int PageId, NonLeafNodeInt currNode, const void *key) {
-        //insert end of the key array
+    // insert end of the key array
     int size = currNode->keyArray.size;
-        currNode->keyArray.add(*key);
-        //for loop to traverse through the keyArray 
-        for(int i = 0; i < size; i++){
-            if(currNode->keyArray[size - i] < currNode->keyArray[size - i - 1])
-            //swap key values 
+    currNode->keyArray.add(*key);
+    // for loop to traverse through the keyArray
+    for (int i = 0; i < size; i++) {
+        if (currNode->keyArray[size - i] < currNode->keyArray[size - i - 1])
+            // swap key values
             int temp = currNode->keyArray[size - i - 1];
-            currNode->keyArray[size - i - 1] = currNode->keyArray[size - i];
-            currNode->keyArray[size - i] = temp;
-            //swap rid values 
-            int tempRid = currNode->ridArray[size - i - 1];
-            currNode->ridArray[size - i - 1] = currNode->keyArray[size - i];
-            currNode->ridArray[size - i] = temp;
-        }
-        
-
+        currNode->keyArray[size - i - 1] = currNode->keyArray[size - i];
+        currNode->keyArray[size - i] = temp;
+        // swap rid values
+        int tempRid = currNode->ridArray[size - i - 1];
+        currNode->ridArray[size - i - 1] = currNode->keyArray[size - i];
+        currNode->ridArray[size - i] = temp;
     }
-    
+}
+
 }
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::insertIntoLeafNode
-//this method is for when inserting into a leaf - checks where it fits and insert 
-//calls split if nodes is full 
-//calls the insertintoNode method to sort it 
+// this method is for when inserting into a leaf - checks where it fits and insert
+// calls split if nodes is full
+// calls the insertintoNode method to sort it
 // -----------------------------------------------------------------------------
-void BTreeIndex::insertIntoLeafNode(const RecordId,  const void *key, NonLeafNodeInt currNode) {
-    //number of childNodes 
-     int numOfLeafNodes = currNode->pageNoArray.size;
-    //read first node 
+void BTreeIndex::insertIntoLeafNode(const RecordId, const void *key, NonLeafNodeInt currNode) {
+    // number of childNodes
+    int numOfLeafNodes = currNode->pageNoArray.size;
+    // read first node
     LeafNodeInt leafNode;
-    //look for a value less than final of a key array 
+    // look for a value less than final of a key array
     bool found;
-    //keep looking till leaf node is selected to insert into 
-    while(found){
-        //for loop runs through all the children of a given Non Leaf Node 
-        for(int i = 0; i < numOfLeafNodes; i++){
-            //read the page 
-            bufMgr->readPage(this->file,currNode->pageNoArray[i],leafNode);
+    // keep looking till leaf node is selected to insert into
+    while (found) {
+        // for loop runs through all the children of a given Non Leaf Node
+        for (int i = 0; i < numOfLeafNodes; i++) {
+            // read the page
+            bufMgr->readPage(this->file, currNode->pageNoArray[i], leafNode);
             if (leafNode->keyArray[keyArray.size - 1])
         }
-        
-
     }
-    
-
-    
 }
-
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::create new Root
-//this method is for when to create a new Root node while propograting
+// this method is for when to create a new Root node while propograting
 // -----------------------------------------------------------------------------
 void BTreeIndex::createNewRoot(const int PageId Page, const bool aboveNonLeaf, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild) {
-    //root page should always be 2
+    // root page should always be 2
     PageId rootId = 2;
-    //create non lead node for root
+    // create non lead node for root
     NonLeafNodeInt rootNode;
     bufMgr->readPage(this->file, rootId, rootNode);
-    //update/create new non leaf node
-    //level = 0 unless right above NonLeafNode
+    // update/create new non leaf node
+    // level = 0 unless right above NonLeafNode
     if (aboveNonLeaf) {
         rootNode->level = 1;
     } else {
         rootNode->level = 0;
     }
     rootNode->keyArray.add(*key);
-    //add left child
+    // add left child
     rootNode->pageNoArray[0] = leftChild;
-    //add right child
+    // add right child
     rootNode->pageNoArray[1] = rightChild;
     rootNode->spaceAvail--;
-    //do we need to update the meta?
+    // do we need to update the meta?
 }
 // -----------------------------------------------------------------------------
 // BTreeIndex::splitLeafNodes -  None Leaf nodes
 // -----------------------------------------------------------------------------
 void BTreeIndex::splitNonLeafNode(const PageNo Page, NonLeafNodeInt currNode, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild) {
     PageNo pageId = Page;
-    //reads the page to split
+    // reads the page to split
     this.bufMgr->rootNode.readPage(this->file, pageId, currNode);
-    //Reads the parent node
+    // Reads the parent node
     NonLeafNodeInt parent;
-    //read the parent page
+    // read the parent page
     this.bufMgr->rootNode.readPage(this->file, currNode->parentPage, parent);
-    //call insert into node
+    // call insert into node
     insertIntoLeaf(currNode->parentPage, parent)
-    //remove node?
+    // remove node?
 }
 // -----------------------------------------------------------------------------
 // BTreeIndex::splitNode -  Leaf nodes
 // -----------------------------------------------------------------------------
 void BTreeIndex::splitLeafNode(const void *key, const RecordId rid) {
-    //left biased
+    // left biased
 }
 
 // -----------------------------------------------------------------------------
@@ -249,8 +239,6 @@ void BTreeIndex::searchNode(const void *key, PageId &pid, PageId currentId, Page
     bufMgr->readPage(file, currentId, curPage);
 
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
-
-    
 }
 
 // -----------------------------------------------------------------------------
