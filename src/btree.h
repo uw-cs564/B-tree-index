@@ -163,10 +163,6 @@ struct NonLeafNodeInt {
      */
     bool isNonLeaf = true;
 
-    /**
-     * Stores page numbers of parent page number 
-     */
-    PageId parentPage; 
 };
 
 /**
@@ -198,6 +194,12 @@ struct LeafNodeInt {
      * Checks if node is a leaf or Non leaf node   
      */
     bool isNonLeaf = false;
+
+     /**
+     * Stores page numbers of parent page number 
+     * This is 0 if no parent page exists 
+     */
+    PageId parentPage; 
 };
 
 };
