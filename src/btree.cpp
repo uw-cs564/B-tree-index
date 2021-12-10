@@ -64,7 +64,7 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
         // unpin headerPage because we are finished with it but didn't modify it.
         bufMgr->unPinPage(file, headerPageNum, false);
 
-    } catch (FileNotFoundException) {  // This means file doesn't exist so create a file.
+    } catch (FileNotFoundExceptio)  {  // This means file doesn't exist so create a file.
 
         file = new BlobFile(outIndexName, true);
 
@@ -313,6 +313,10 @@ void BTreeIndex::startScan(const void *lowValParm,
 // -----------------------------------------------------------------------------
 
 void BTreeIndex::scanNext(RecordId &outRid) {
+    if (!scanExecuting) {
+        throw ScanNotInitializedException();
+    }
+    LeafNodeInt* currentNode = (LeafNodeInt *) currentPageData;
 }
 
 // -----------------------------------------------------------------------------
@@ -323,7 +327,11 @@ void BTreeIndex::endScan() {
     if (!scanExecuting) {
         throw ScanNotInitializedException();
     }
+    nextEntry = false;
     scanExecuting = false;
+    bufMgr->unPinPage(file, currentPageNum, false);
+    currentPageNum = (PageId) -1;
+    currentPageData = nullptr;
 }
 
 }  // namespace badgerdb
