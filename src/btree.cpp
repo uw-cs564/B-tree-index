@@ -165,9 +165,13 @@ void BTreeIndex::insertIntoNode(const int PageId, NonLeafNodeInt currNode, const
 // calls split if nodes is full
 // calls the insertintoNode method to sort it
 // -----------------------------------------------------------------------------
-void BTreeIndex::insertIntoLeafNode(const RecordId, const void *key, NonLeafNodeInt currNode) {
+void BTreeIndex::insertIntoLeafNode(const RecordId rid, const PageId pid, const void *key, NonLeafNodeInt currNode) {
+    Page *curPage;
+    bufMgr->readPage(file, pid, curPage);
+
+    LeafNodeInt *curNode = (LeafNodeInt *)curPage;
     // number of childNodes
-    int numOfLeafNodes = currNode->pageNoArray.size;
+    int numOfLeafNodes = curNode->pageNoArray.size;
     // read first node
     Page *insertPage;
     // look for a value less than final of a key array
@@ -177,11 +181,11 @@ void BTreeIndex::insertIntoLeafNode(const RecordId, const void *key, NonLeafNode
         // for loop runs through all the children of a given Non Leaf Node
         for (int i = 0; i < numOfLeafNodes; i++) {
             // read the page
-            bufMgr->readPage(this->file, currNode->pageNoArray[i], insertPage);
+            bufMgr->readPage(this->file, curNode->pageNoArray[i], insertPage);
             // check if the key values is than the last value of the node
             if (*key < leafNode->keyArray[leafNode->keyArray.size - 1]) {
                 // call insert - to insert into correct postion of page
-                insertIntoNode(currNode->pageNoArray[i], currNode, *key) {
+                insertIntoNode(curNode->pageNoArray[i], currNocurNodede, *key) {
                     // break out of for loop
                     break;
                     // break out of while loop
@@ -194,29 +198,32 @@ void BTreeIndex::insertIntoLeafNode(const RecordId, const void *key, NonLeafNode
 
 // -----------------------------------------------------------------------------
 // BTreeIndex::create new Root
-// this method is for when to create a new Root node while propograting
+// this method is for when to create a new Root node while propagating
 // -----------------------------------------------------------------------------
-void BTreeIndex::createNewRoot(const int PageId Page, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf) {
-    // root page should always be 2
-    PageId rootId = 2;
-    curPage *rootPage;
+
+void BTreeIndex::createNewRoot(const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level) {
+    Page *root;
+    PageId rootId;
     // create non lead node for root
-    NonLeafNodeInt rootNode;
-    bufMgr->readPage(this->file, rootId, rootPage);
-    // itialize new root node
-    rootNode = (NonLeafNodeInt *)rootPage;
+    NonLeafNodeInt *rootNode;
+    bufMgr->allocPage(file, rootId, root);
+
+    // initialize new root node
+    rootNode = (NonLeafNodeInt *)root;
     // update new non leaf node
     if (aboveLeaf) {
         rootNode->level = 1;
     } else {
         rootNode->level = 0;
     }
-    rootNode->keyArray.add(*key);
+    rootNode->keyArray[0] = *((int *)key);
+
     // add left child
     rootNode->pageNoArray[0] = leftChild;
     // add right child
     rootNode->pageNoArray[1] = rightChild;
     rootNode->spaceAvail--;
+
     // unpin page
     this->bufMgr->unPinPage(this->file, rootId, true);
     // do we need to update the meta?
@@ -226,9 +233,10 @@ void BTreeIndex::createNewRoot(const int PageId Page, const void *key, const Rec
 // BTreeIndex::splitLeafNodes -  None Leaf nodes
 // called if spaceAvail = 0 when inserting
 // -----------------------------------------------------------------------------
-void BTreeIndex::splitNonLeafNode(const PageNo Page, NonLeafNodeInt currNode, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild) {
+void BTreeIndex::splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild) {
     // reads the page to split
-    this.bufMgr->currNode.readPage(this->file, Page, currNode);
+    Page *curPage;
+    bufMgr->readPage(this->file, pid, currNode);
     // Create the new page(sibling)
     Page *newPage;
     PageId newPageId;

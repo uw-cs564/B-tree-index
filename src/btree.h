@@ -308,6 +308,8 @@ class BTreeIndex {
      */
     Operator highOp;
 
+    /* ########### Custom functions ########### */
+
     /**
      * Recursive function to traverse the B+ Tree and find the node with the coorsponding key value
      *
@@ -315,6 +317,16 @@ class BTreeIndex {
      * @param pid   Page ID of the result
      */
     void BTreeIndex::searchNode(const void* key, PageId& pid, PageId currentId, PageId parent);
+
+    void BTreeIndex::insertIntoNode(const int PageId, NonLeafNodeInt currNode, const void* key);
+
+    void BTreeIndex::insertIntoLeafNode(const RecordId, const void* key, NonLeafNodeInt currNode);
+
+    void BTreeIndex::createNewRoot(PageId pid, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
+    void BTreeIndex::createNewRoot(const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level);
+    void BTreeIndex::splitLeafNode(const void* key, const RecordId rid);
+
+    void BTreeIndex::splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
 
    public:
     /**
