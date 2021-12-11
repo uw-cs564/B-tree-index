@@ -392,11 +392,23 @@ void BTreeIndex::scanNext(RecordId &outRid) {
     if (!scanExecuting) {
         throw ScanNotInitializedException();
     }
+    if (nextEntry == -1) throw IndexScanCompletedException();
     LeafNodeInt* currentNode = (LeafNodeInt *) currentPageData;
+    if(currentNode->ridArray[nextEntry].page_number != 0 && nextEntry != leafOccupancy) {
+        int currentKey = currentNode->keyArray[nextEntry];
+        if ()
+    }
+  {
+}
+void BTreeIndex::keyCorrect (Operator lowOp, Operator highOp, int lowVal, int highVal, int key) {
+    if (lowOp == GTE) {
+        if (highOp == LTE) {
+            if ()
+        }
+    }
 }
 
-    void BTreeIndex::scanNext(RecordId & outRid) {
-    }
+    
 
     // -----------------------------------------------------------------------------
     // BTreeIndex::endScan
