@@ -153,16 +153,20 @@ struct NonLeafNodeInt {
      * Stores page numbers of child pages which themselves are other non-leaf/leaf nodes in the tree.
      */
     PageId pageNoArray[INTARRAYNONLEAFSIZE + 1];
-     /**
-     * Stores available space in Node. Decrements as new array are added  
+    /**
+     * Stores available space in Node. Decrements as new array are added
      */
     int spaceAvail = INTARRAYNONLEAFSIZE;
 
     /**
-     * Checks if node is a leaf or Non leaf node   
+     * Checks if node is a leaf or Non leaf node
      */
     bool isNonLeaf = true;
 
+    /**
+     * Stores page numbers of parent page number
+     */
+    PageId parentPage;
 };
 
 /**
@@ -185,23 +189,21 @@ struct LeafNodeInt {
      */
     PageId rightSibPageNo;
 
-     /**
-     * Stores available space in Node 
+    /**
+     * Stores available space in Node
      */
     int spaceAvail = INTARRAYLEAFSIZE;
 
-     /**
-     * Checks if node is a leaf or Non leaf node   
+    /**
+     * Checks if node is a leaf or Non leaf node
      */
     bool isNonLeaf = false;
 
-     /**
-     * Stores page numbers of parent page number 
-     * This is 0 if no parent page exists 
+    /**
+     * Stores page numbers of parent page number
+     * This is 0 if no parent page exists
      */
-    PageId parentPage; 
-};
-
+    PageId parentPage;
 };
 
 /**
@@ -312,6 +314,8 @@ class BTreeIndex {
      */
     Operator highOp;
 
+    /* ########### Custom functions ########### */
+
     /**
      * Recursive function to traverse the B+ Tree and find the node with the coorsponding key value
      *
@@ -319,6 +323,16 @@ class BTreeIndex {
      * @param pid   Page ID of the result
      */
     void BTreeIndex::searchNode(const void* key, PageId& pid, PageId currentId, PageId parent);
+
+    void BTreeIndex::insertIntoNode(const int PageId, NonLeafNodeInt currNode, const void* key);
+
+    void BTreeIndex::insertIntoLeafNode(const RecordId, const void* key, NonLeafNodeInt currNode);
+
+    void BTreeIndex::createNewRoot(PageId pid, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
+    void BTreeIndex::createNewRoot(const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level);
+    void BTreeIndex::splitLeafNode(const void* key, const RecordId rid);
+
+    void BTreeIndex::splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
 
    public:
     /**
