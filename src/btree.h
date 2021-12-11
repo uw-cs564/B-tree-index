@@ -329,7 +329,9 @@ class BTreeIndex {
     void BTreeIndex::insertIntoLeafNode(const RecordId, const void* key, NonLeafNodeInt currNode);
 
     void BTreeIndex::createNewRoot(PageId pid, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
+    
     void BTreeIndex::createNewRoot(const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level);
+    
     void BTreeIndex::splitLeafNode(const void* key, const RecordId rid);
 
     void BTreeIndex::splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
