@@ -635,7 +635,17 @@ bool BTreeIndex::keyCorrect(Operator lowOp, Operator highOp, int lowVal, int hig
             }
         }
     }
+}
 
+// -----------------------------------------------------------------------------
+// BTreeIndex::endScan
+// -----------------------------------------------------------------------------
+//
+void BTreeIndex::endScan() {
+    if (!scanExecuting) {
+        throw ScanNotInitializedException();
+    }
+    scanExecuting = false;
     nextEntry = false;
     scanExecuting = false;
     bufMgr->unPinPage(file, currentPageNum, false);
