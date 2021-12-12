@@ -227,6 +227,10 @@ void BTreeIndex::insertIntoLeafNode(const RecordId, const void *key, NonLeafNode
         // add right child
         rootNode->pageNoArray[1] = rightChild;
         rootNode->spaceAvail--;
+        Page *metaPage;
+        bufMgr->readPage(file, headerPageNum, metaPage);
+        IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
+        meta->rootPageNo = rootId;
         // unpin page
         this->bufMgr->unPinPage(this->file, rootId, true);
         // do we need to update the meta?
