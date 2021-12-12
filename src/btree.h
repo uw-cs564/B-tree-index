@@ -314,24 +314,31 @@ class BTreeIndex {
      */
     Operator highOp;
 
+    /* ########### Custom Fields ########### */
+
+    /**
+     * Variable keep track of if the new insert should be in the root or not
+     */
+    bool insertInRoot;
+
     /* ########### Custom functions ########### */
 
     /**
      * Recursive function to traverse the B+ Tree and find the node with the coorsponding key value
      *
-     * @param key   the void pointer of the key to be searched
      * @param pid   Page ID of the result
+     * @param key   the void pointer of the key to be searched
      */
-    void BTreeIndex::searchNode(const void* key, PageId& pid, PageId currentId, PageId parent);
+    void BTreeIndex::searchNode(PageId& pid, const void* key, PageId currentId);
 
     void BTreeIndex::insertIntoNode(const int PageId, NonLeafNodeInt currNode, const void* key);
 
-    void BTreeIndex::insertIntoLeafNode(const RecordId, const void* key, NonLeafNodeInt currNode);
+    void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const void* key);
 
     void BTreeIndex::createNewRoot(PageId pid, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
-    
+
     void BTreeIndex::createNewRoot(const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level);
-    
+
     void BTreeIndex::splitLeafNode(const void* key, const RecordId rid);
 
     void BTreeIndex::splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
