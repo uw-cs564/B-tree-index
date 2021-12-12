@@ -161,7 +161,7 @@ struct NonLeafNodeInt {
     /**
      * Checks if node is a leaf or Non leaf node
      */
-    bool isNonLeaf = true;
+    bool isLeaf = false;
 
     /**
      * Stores page numbers of parent page number
@@ -197,7 +197,7 @@ struct LeafNodeInt {
     /**
      * Checks if node is a leaf or Non leaf node
      */
-    bool isNonLeaf = false;
+    bool isLeaf = true;
 
     /**
      * Stores page numbers of parent page number
@@ -329,17 +329,24 @@ class BTreeIndex {
      * @param pid   Page ID of the result
      * @param key   the void pointer of the key to be searched
      */
-    void BTreeIndex::searchNode(PageId& pid, const void* key, PageId currentId);
+    void searchNode(PageId& pid, const void* key, PageId currentId);
 
-    void BTreeIndex::insertIntoNode(const int PageId, NonLeafNodeInt currNode, const void* key);
+    void insertIntoNonLeafNode(const PageId pid, const RecordId rid, const void* key);
 
-    void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const void* key);
+    /**
+     * Inserts new entry into a leaf node if the node has space left, if not, splitLeafNode will be called
+     *
+     * @param pid           Page ID of leaf node
+     * @param rid			Record ID of a record whose entry is getting inserted into the index.
+     * @param key			Key to insert, pointer to integer/double/char string
+     */
+    void insertIntoLeafNode(const PageId pid, const RecordId rid, const void* key);
 
-    void BTreeIndex::createNewRoot(const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level);
+    void createNewRoot(const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level);
 
-    void BTreeIndex::splitLeafNode(const void* key, const RecordId rid, PageId pid);
+    void splitLeafNode(const void* key, const RecordId rid, PageId pid);
 
-    void BTreeIndex::splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
+    void splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
 
    public:
     /**
