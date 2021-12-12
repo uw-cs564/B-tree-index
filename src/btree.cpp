@@ -122,7 +122,6 @@ BTreeIndex::~BTreeIndex() {
 // -----------------------------------------------------------------------------
 // BTreeIndex::insertEntry
 // -----------------------------------------------------------------------------
-
 void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
     if (insertInRoot) {
         // case 1 - there hasn't been a split yet, ie, all nodes inserted into root node (leaf node)
@@ -186,47 +185,33 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
 
         // First add the new entry to the end of the array
         curNode->ridArray[numPage] = rid;
-        curNode->keyArray[numPage] = *(int *)key;
+        curNode->keyArray[numPage] = *((int *)key);
 
         // Then bubble sort the entries into the right place
         for (int i = numPage; i > 0; i++) {
+            if (curNode->keyArray[i] < curNode->keyArray[i - 1]) {
+                // Swaps the lower value and the inserted value by saving a temporay variable
+                int tempKey = curNode->keyArray[i - 1];
+                RecordId tempId = curNode->ridArray[i - 1];
+
+                curNode->keyArray[i - 1] = curNode->keyArray[i];
+                curNode->ridArray[i - 1] = curNode->ridArray[i];
+
+                curNode->keyArray[i] = tempKey;
+                curNode->ridArray[i] = tempId;
+            } else {
+                // If it reaches here, that means the new key is in the right spot
+                break;
+            }
+            // use up one aviliable space
+            curNode->spaceAvail--;
+            bufMgr->unPinPage(file, pid, true);
         }
     } else {
         // No room now, need to split and push up
+        bufMgr->unPinPage(file, pid, true);
+        splitLeafNode(key, rid, pid);
     }
-
-    // // number of childNodes
-    // int numOfLeafNodes = currNode->pageNoArray.size;
-    // // read first node
-    // Page *insertPage;
-    // // look for a value less than final of a key array
-    // bool notFound = true;
-    // // keep looking till leaf node is selected to insert into
-    // while (notFound) {
-    //     // for loop runs through all the children of a given Non Leaf Node
-    //     for (int i = 0; i < numOfLeafNodes; i++) {
-    //         // read the page
-    //         bufMgr->readPage(this->file, currNode->pageNoArray[i], insertPage);
-    //         // check if the key values is than the last value of the node
-    //         if (*key < leafNode->keyArray[leafNode->keyArray.size - 1]) {
-    //             // check that there is space to insert
-    //             if (currNode->spaceAvail > 0) {
-    //                 // call insert - to insert into correct postion of page
-    //                 insertIntoNode(currNode->pageNoArray[i], currNode, *key, RecordId);
-    //             }
-    //             // if no room to insert into node, call split node
-    //             else {
-    //                 splitLeafNode(*key, RecordId rid, currNode->pageNoArray[i])
-    //             }
-    //             // break out of for loop
-    //             break;
-    //             // break out of while loop
-    //             notFound = false;
-    //         }
-
-    //         bufMgr->unPinPage(file, currNode->pageNoArray[i], true);
-    //     }
-    // }
 }
 
 // -----------------------------------------------------------------------------
