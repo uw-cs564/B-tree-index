@@ -153,16 +153,20 @@ struct NonLeafNodeInt {
      * Stores page numbers of child pages which themselves are other non-leaf/leaf nodes in the tree.
      */
     PageId pageNoArray[INTARRAYNONLEAFSIZE + 1];
-     /**
-     * Stores available space in Node. Decrements as new array are added  
+    /**
+     * Stores available space in Node. Decrements as new array are added
      */
     int spaceAvail = INTARRAYNONLEAFSIZE;
 
     /**
-     * Checks if node is a leaf or Non leaf node   
+     * Checks if node is a leaf or Non leaf node
      */
-    bool isNonLeaf = true;
+    bool isLeaf = false;
 
+    /**
+     * Stores page numbers of parent page number
+     */
+    PageId parentPage;
 };
 
 /**
@@ -185,23 +189,21 @@ struct LeafNodeInt {
      */
     PageId rightSibPageNo;
 
-     /**
-     * Stores available space in Node 
+    /**
+     * Stores available space in Node
      */
     int spaceAvail = INTARRAYLEAFSIZE;
 
-     /**
-     * Checks if node is a leaf or Non leaf node   
+    /**
+     * Checks if node is a leaf or Non leaf node
      */
-    bool isNonLeaf = false;
+    bool isLeaf = true;
 
-     /**
-     * Stores page numbers of parent page number 
-     * This is 0 if no parent page exists 
+    /**
+     * Stores page numbers of parent page number
+     * This is 0 if no parent page exists
      */
-    PageId parentPage; 
-};
-
+    PageId parentPage;
 };
 
 /**
@@ -312,13 +314,39 @@ class BTreeIndex {
      */
     Operator highOp;
 
+    /* ########### Custom Fields ########### */
+
+    /**
+     * Variable keep track of if the new insert should be in the root or not
+     */
+    bool insertInRoot;
+
+    /* ########### Custom functions ########### */
+
     /**
      * Recursive function to traverse the B+ Tree and find the node with the coorsponding key value
      *
-     * @param key   the void pointer of the key to be searched
      * @param pid   Page ID of the result
+     * @param key   the void pointer of the key to be searched
      */
-    void BTreeIndex::searchNode(const void* key, PageId& pid, PageId currentId, PageId parent);
+    void searchNode(PageId& pid, const void* key, PageId currentId);
+
+    void insertIntoNonLeafNode(const PageId pid, const RecordId rid, const void* key);
+
+    /**
+     * Inserts new entry into a leaf node if the node has space left, if not, splitLeafNode will be called
+     *
+     * @param pid           Page ID of leaf node
+     * @param rid			Record ID of a record whose entry is getting inserted into the index.
+     * @param key			Key to insert, pointer to integer/double/char string
+     */
+    void insertIntoLeafNode(const PageId pid, const RecordId rid, const void* key);
+
+    void createNewRoot(const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level);
+
+    void splitLeafNode(const void* key, const RecordId rid, PageId pid);
+
+    void splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
 
    public:
     /**
@@ -386,6 +414,7 @@ class BTreeIndex {
      * @throws ScanNotInitializedException If no scan has been initialized.
      **/
     void endScan();
+    bool keyCorrect(Operator lowOp, Operator highOp, int lowVal, int highVal, int key);
 };
 
 }  // namespace badgerdb
