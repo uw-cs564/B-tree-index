@@ -254,6 +254,10 @@ void BTreeIndex::createNewRoot(const int PageId Page, const void *key, const Rec
     // add right child
     rootNode->pageNoArray[1] = rightChild;
     rootNode->spaceAvail--;
+    Page *metaPage;
+    bufMgr->readPage(file, headerPageNum, metaPage);
+    IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
+    meta->rootPageNo = rootId;
     // unpin page
     this->bufMgr->unPinPage(this->file, rootId, true);
     // do we need to update the meta?
@@ -262,7 +266,7 @@ void BTreeIndex::createNewRoot(const int PageId Page, const void *key, const Rec
 // BTreeIndex::splitLeafNodes -  None Leaf nodes
 // called if spaceAvail = 0 when inserting
 // -----------------------------------------------------------------------------
-void BTreeIndex::splitNonLeafNode(const PageNo Page, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild) {
+void BTreeIndex::createNewRoot(const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level) {
     Page *currPage;
     // reads the page to split
     bufMgr->readPage(this->file, Page, currPage);
@@ -293,22 +297,24 @@ void BTreeIndex::splitNonLeafNode(const PageNo Page, const void *key, const Reco
 
     // if parent page Id = 0 then call the newRootMethod
 }
+
 // -----------------------------------------------------------------------------
 // BTreeIndex::splitNode -  Leaf nodes
 // -----------------------------------------------------------------------------
-void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageNo Page) {
+
+void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, PageId pid) {
     // right biased
     // creates page of leaf node
     Page *leafPage;
     // reads the page to split
-    bufMgr->readPage(this->file, Page, leafPage);
+    bufMgr->readPage(this->file, pid, leafPage);
     // create node
     LeafNodeInt *curNode = (LeafNodeInt *)leafPage;
     // create new node to split into
     Page *newLeafPage;
     PageId newLeafPageId;
     // creates new page for split
-    bufMgr->allocatePage(this->file, newLeafPageId, newLeafPage);
+    bufMgr->allocPage(this->file, newLeafPageId, newLeafPage);
     // create a new node
     LeafNodeInt *splitNode = (LeafNodeInt *)newLeafPage;
     // split leafNode into size of node / 2, (size of node / 2)+1
@@ -421,23 +427,62 @@ void BTreeIndex::scanNext(RecordId &outRid) {
 }
 
 void BTreeIndex::scanNext(RecordId &outRid) {
-}
-
-// -----------------------------------------------------------------------------
-// BTreeIndex::endScan
-// -----------------------------------------------------------------------------
-//
-void BTreeIndex::endScan() {
     if (!scanExecuting) {
         throw ScanNotInitializedException();
     }
-    scanExecuting = false;
+    LeafNodeInt *currentNode = (LeafNodeInt *)currentPageData;
 
-    nextEntry = false;
-    scanExecuting = false;
-    bufMgr->unPinPage(file, currentPageNum, false);
-    currentPageNum = (PageId)-1;
-    currentPageData = nullptr;
+    if (nextEntry == -1) throw IndexScanCompletedException();
+    LeafNodeInt *currentNode = (LeafNodeInt *)currentPageData;
+    if (currentNode->ridArray[nextEntry].page_number == 0 || nextEntry == leafOccupancy) {
+        if (currentNode->rightsibPageNo == 0) {
+            throw IndexScanCompletedExceptin()
+        } else {
+            bufMgr->unPinPage(file, currentPageNum, false);
+            currentPageNum = currentNode->rightSibPageNo;
+            bufMgr->readPage(file, currentPageNum, currentPageData);
+            nextEntry = 0;
+            currentNode = (LeafNodeInt *)currentPageData;
+        }
+    } else {
+        if (currentNode->ridArray[nextEntry].page_number != 0 && nextEntry != leafOccupancy) {
+            int currentKey = currentNode->keyArray[nextEntry];
+            int key = currentNode->keyArray[nextEntry];
+            if (keyCorrect(lowOp, highOp, lowValInt, highValInt, key)) {
+                outRid = currentNode->ridArray[nextEntry];
+                nextEntry = nextEntry + 1;
+            }
+        } else {
+            // the rid is not satisfied.
+        }
+    }
+}
+
+bool BTreeIndex::keyCorrect(Operator lowOp, Operator highOp, int lowVal, int highVal, int key) {
+    if (lowOp == GTE) {
+        if (highOp == LTE) {
+            return key <= highVal && key >= lowVal;
+        } else if (highOp == LT) {
+            return key < highVal && key >= lowVal;
+        }
+    } else {
+        if (lowOp == GT) {
+            if (highOp == LTE) {
+                return key <= highVal && key > lowVal;
+            } else {
+                if (highOp == LT) {
+                    return key < highVal && key > lowVal;
+                }
+            }
+        }
+    }
+}
+
+nextEntry = false;
+scanExecuting = false;
+bufMgr->unPinPage(file, currentPageNum, false);
+currentPageNum = (PageId)-1;
+currentPageData = nullptr;
 }
 
 }  // namespace badgerdb

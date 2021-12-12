@@ -335,11 +335,9 @@ class BTreeIndex {
 
     void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const void* key);
 
-    void BTreeIndex::createNewRoot(PageId pid, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
-
     void BTreeIndex::createNewRoot(const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf, int level);
 
-    void BTreeIndex::splitLeafNode(const void* key, const RecordId rid);
+    void BTreeIndex::splitLeafNode(const void* key, const RecordId rid, PageId pid);
 
     void BTreeIndex::splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
 
@@ -409,6 +407,7 @@ class BTreeIndex {
      * @throws ScanNotInitializedException If no scan has been initialized.
      **/
     void endScan();
+    bool keyCorrect(Operator lowOp, Operator highOp, int lowVal, int highVal, int key);
 };
 
 }  // namespace badgerdb
