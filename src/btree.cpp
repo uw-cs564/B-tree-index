@@ -600,6 +600,10 @@ void BTreeIndex::endScan() {
     bufMgr->unPinPage(file, currentPageNum, false);
     currentPageNum = (PageId)-1;
     currentPageData = NULL;
+    lowOp = (Operator) NULL;
+    highOp = (Operator) NULL;
+    lowValInt = -1;
+    highValInt = -1;
 }
 
 }  // namespace badgerdb
