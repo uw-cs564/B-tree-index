@@ -260,12 +260,12 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
 }
 
 /**
- * This method is called when the top of the tree is reached and we have to create a new root node.
- *
+ * This method is called when the top of the tree is reached and we have to create a new root node. 
+ * 
  * @param key			Key to insert, pointer to integer/double/char string
- * @param leftChild			Key to insert, pointer to integer/double/char string
- * @param rightChild			Key to insert, pointer to integer/double/char string
- * @param key			Key to insert, pointer to integer/double/char string
+ * @param leftChild		The PageId of the leftchild of the new root 
+ * @param rightChild	The PageId of the rightchild of the new root 
+ * @param aboveLeaf		Bool value that tells if the new root to create will be above LeafNodes 
  **/
 void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const PageId rightChild, bool aboveLeaf) {
     // declare rootID
@@ -398,9 +398,10 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
         // sets the split node to the second half values of the current node
         newNode->keyArray[i] = curNode->keyArray[INTARRAYNONLEAFSIZE / 2 + i];
         // delete the values from the current Node after adding to split node
-        newNode->keyArray[INTARRAYNONLEAFSIZE / 2 + i] = NULL;
+        // no need to delete 
+        //newNode->keyArray[INTARRAYNONLEAFSIZE / 2 + i] = NULL;
         // update the children of the new node
-        newNode->pageNoArray[i] = curNode->pageNoArray[INTARRAYNONLEAFSIZE / 2 + i + 1];
+        newNode->pageNoArray[i] = curNode->pageNoArray[INTARRAYNONLEAFSIZE / 2 + i];
     }
     // addedNewNode keeps track of where the new node was added
     // this will be used to find which key to push up
