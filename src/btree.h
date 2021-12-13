@@ -140,11 +140,6 @@ struct NonLeafNodeInt {
     int level;
 
     /**
-     * Parent node's id
-     */
-    PageId parentId;
-
-    /**
      * Stores keys.
      */
     int keyArray[INTARRAYNONLEAFSIZE];
@@ -165,8 +160,9 @@ struct NonLeafNodeInt {
 
     /**
      * Stores page numbers of parent page number
+     * This is 0 if no parent page exists
      */
-    PageId parentPage;
+    PageId parentId;
 };
 
 /**
@@ -342,8 +338,8 @@ class BTreeIndex {
      */
     void insertIntoLeafNode(const PageId pid, const RecordId rid, const void* key);
 
-    void BTreeIndex::createNewRoot(const int PageId pid, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
-    
+    void BTreeIndex::createNewRoot(const PageId pid, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
+
     void splitLeafNode(const void* key, const RecordId rid, PageId pid);
 
     void splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);

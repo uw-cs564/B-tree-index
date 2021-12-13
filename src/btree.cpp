@@ -279,14 +279,14 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
 
     int keyInt = *((int *)key);  // Key of data, but in int form
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
-    int numPage = INTARRAYLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
-    int numChild = numPage + 1;                            // How many children nodes this node points to
+    int numPage = INTARRAYNONLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
+    int numChild = numPage + 1;                               // How many children nodes this node points to
 
     //! debug
     std::cout << "Searching for : " << keyInt << std::endl;
 
     //  search throught the key list of the current node until we reach the leaf node
-    for (int i = 0; keyInt < numPage; i++) {
+    for (int i = 0; i < numPage; i++) {
         //! debug
         std::cout << "comparing against : " << curNode->keyArray[i] << std::endl;
 
@@ -306,10 +306,11 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
             LeafNodeInt *targetNode = (LeafNodeInt *)targetPage;
 
             // Sets the parrent of the leaf node to current node
-            targetNode->parentPage = currentId;
+            targetNode->parentId = currentId;
 
             // Whether we reached the end or not
             if (curNode->level == 1) {
+                bufMgr->unPinPage(file, currentId, false);
                 // this means we are right above the target leaf node
                 // Save the result
                 pid = targetId;
@@ -318,8 +319,9 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
                 bufMgr->unPinPage(file, currentId, false);
                 searchNode(pid, key, targetId);
             }
+            // The right spot has been found, therefore the function can end now
+            return;
         }
-        // else just continue on with the loop
     }
     // By here, there is no place to go, so must down the right most branch
     bufMgr->unPinPage(file, currentId, false);
