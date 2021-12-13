@@ -348,6 +348,19 @@ class BTreeIndex {
 
     void splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
 
+    /**
+     * @brief Checks if the key satisfies the conditions based on the operators and values.
+     *
+     * @param lowOp Low operator (GT/GTE)
+     * @param highOp High operator (LT/LTE)
+     * @param lowVal Low value of range, pointer to integer / double / char string
+     * @param highVal High value of range, pointer to integer / double / char string
+     * @param key The key to check.
+     * @return true If the key meets the conditions
+     * @return false if the key doesn't meet the conditions.
+     */
+    bool keyCorrect(Operator lowOp, Operator highOp, int lowVal, int highVal, int key);
+
    public:
     /**
      * BTreeIndex Constructor.
@@ -414,7 +427,6 @@ class BTreeIndex {
      * @throws ScanNotInitializedException If no scan has been initialized.
      **/
     void endScan();
-    bool keyCorrect(Operator lowOp, Operator highOp, int lowVal, int highVal, int key);
 };
 
 }  // namespace badgerdb
