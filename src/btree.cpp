@@ -87,7 +87,6 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
         meta->rootPageNo = rootPageNum;
 
         // Create the root.
-        bufMgr->allocPage(file, rootPageNum, rootPage);
         NonLeafNodeInt *root = (NonLeafNodeInt *)rootPage;
 
         FileScan FS(relationName, bufMgr);
