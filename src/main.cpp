@@ -136,7 +136,8 @@ int main(int argc, char **argv) {
 void test1() {
     // Create a relation with tuples valued 0 to relationSize and perform index tests
     // on attributes of all three types (int, double, string)
-    std::cout << "---------------------" << std::endl;
+    std::cout << "----------------------" << std::endl;
+    std::cout << "------- TEST 1 -------" << std::endl;
     std::cout << "createRelationForward" << std::endl;
     createRelationForward();
     indexTests();
@@ -147,6 +148,7 @@ void test2() {
     // Create a relation with tuples valued 0 to relationSize in reverse order and perform index tests
     // on attributes of all three types (int, double, string)
     std::cout << "----------------------" << std::endl;
+    std::cout << "------- TEST 2 -------" << std::endl;
     std::cout << "createRelationBackward" << std::endl;
     createRelationBackward();
     indexTests();
@@ -156,7 +158,8 @@ void test2() {
 void test3() {
     // Create a relation with tuples valued 0 to relationSize in random order and perform index tests
     // on attributes of all three types (int, double, string)
-    std::cout << "--------------------" << std::endl;
+    std::cout << "----------------------" << std::endl;
+    std::cout << "------- TEST 3 -------" << std::endl;
     std::cout << "createRelationRandom" << std::endl;
     createRelationRandom();
     indexTests();
