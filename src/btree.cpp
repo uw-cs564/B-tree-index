@@ -254,7 +254,7 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
         bufMgr->unPinPage(file, pid, true);
     } else {
         // No room now, need to split and push up
-        bufMgr->unPinPage(file, pid, true);
+        bufMgr->unPinPage(file, pid, false);
         splitLeafNode(key, rid, pid);
     }
 }
@@ -394,6 +394,9 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
     newNode->level = curNode->level;
     newNode->parentId = curNode->parentId;
     // udpdate the new nodes values
+    // the new node will get all the larger values 
+    //if max value is odd then we will split 2,3 
+    int odd = false;
     for (int i = 0; i < INTARRAYNONLEAFSIZE / 2; i++) {
         // sets the split node to the second half values of the current node
         newNode->keyArray[i] = curNode->keyArray[INTARRAYNONLEAFSIZE / 2 + i];
@@ -403,6 +406,12 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
         // update the children of the new node
         newNode->pageNoArray[i] = curNode->pageNoArray[INTARRAYNONLEAFSIZE / 2 + i];
     }
+    //if INTARRAYNONLEAFSIZE is odd
+    //assign the largest value to the newNode 
+    if (INTARRAYNONLEAFSIZE % 2 != 0){
+        newNode->keyArray[INTARRAYNONLEAFSIZE/2] = curNode->keyArray[INTARRAYNONLEAFSIZE-1];
+    }
+
     // addedNewNode keeps track of where the new node was added
     // this will be used to find which key to push up
     bool addedNewNode = false;
@@ -508,8 +517,19 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
         // curNode->keyArray[INTARRAYLEAFSIZE / 2 + i] = NULL;
         // curNode->ridArray[INTARRAYLEAFSIZE / 2 + i] = NULL;
     }
+    //if the size of node 
+    //assign the largest value in node to the split Node
+    //this will split the values to d, d+1
+    if (INTARRAYLEAFSIZE % 2 != 0){
+        splitNode->keyArray[INTARRAYLEAFSIZE/2] = curNode->keyArray[INTARRAYLEAFSIZE-1];
+        splitNode->ridArray[INTARRAYLEAFSIZE/2] = curNode->ridArray[INTARRAYLEAFSIZE-1];
+        splitNode->spaceAvail = INTARRAYLEAFSIZE / 2 - 1;
+    }
+    //if it is even, then the space avail is going to be the size of the intarray/2
+    else{
+        splitNode->spaceAvail = INTARRAYLEAFSIZE / 2;
+    }
     // update split node attributes
-    splitNode->spaceAvail = INTARRAYLEAFSIZE - INTARRAYLEAFSIZE / 2;
     splitNode->rightSibPageNo = curNode->rightSibPageNo;
     splitNode->parentId = curNode->parentId;
     // update all the attributes
