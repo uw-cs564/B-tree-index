@@ -28,9 +28,9 @@ namespace badgerdb {
  *
  * @param relationName        Name of file.
  * @param outIndexName        Return the name of index file.
- * @param bufMgrIn						Buffer Manager Instance
- * @param attrByteOffset			Offset of attribute, over which index is to be built, in the record
- * @param attrType						Datatype of attribute over which index is built
+ * @param bufMgrIn			  Buffer Manager Instance
+ * @param attrByteOffset	  Offset of attribute, over which index is to be built, in the record
+ * @param attrType			  Datatype of attribute over which index is built
  * @throws  BadIndexInfoException     If the index file already exists for the corresponding attribute, but values in metapage(relationName, attribute byte offset, attribute type etc.) do not match with values received through constructor parameters.
  */
 
@@ -76,7 +76,7 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
     } catch (FileNotFoundException) {  // This means file doesn't exist so create a file.
         file = new BlobFile(outIndexName, true);
 
-        // create a meta page for the new index.
+        // create a meta page for the new index and fill out it's information.
         bufMgr->allocPage(file, headerPageNum, metaPage);
         bufMgr->allocPage(file, rootPageNum, rootPage);
         IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
@@ -117,13 +117,14 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 BTreeIndex::~BTreeIndex() {
     // The destructor should end any scan, clear state variables, unpin pinned pages, and flush index file,
     // and deletes the file object.
-    if (scanExecuting) {
+    if (scanExecuting) { // If the scan is executing, then end it.
         try {
             endScan();
         } catch (ScanNotInitializedException) {
             std::cout << "No scan has been initialized.";
         }
     }
+    // clears state variables and delete file instance.
     scanExecuting = false;
     bufMgr->flushFile(file);
     delete file;
@@ -490,16 +491,18 @@ void BTreeIndex::scanNext(RecordId &outRid) {
 
     if (nextEntry == -1) throw IndexScanCompletedException();
     LeafNodeInt *currentNode = (LeafNodeInt *)currentPageData;
+    // If the current page is fully read, then move on to the right riblings page if possible.
     if (currentNode->ridArray[nextEntry].page_number == 0 || nextEntry == leafOccupancy) {
         if (currentNode->rightSibPageNo == 0) {
             throw IndexScanCompletedException();
         } else {
-            bufMgr->unPinPage(file, currentPageNum, false);
+            bufMgr->unPinPage(file, currentPageNum, false); // move on to right sibling's page.
             currentPageNum = currentNode->rightSibPageNo;
             bufMgr->readPage(file, currentPageNum, currentPageData);
-            nextEntry = 0;
+            nextEntry = 0; // reset the entry to start at the first entry for the sibling's page.
             currentNode = (LeafNodeInt *)currentPageData;
         }
+        // else, if the page is not fully read then you check if the retrieved key meets the conditions.
     } else {
         if (currentNode->ridArray[nextEntry].page_number != 0 && nextEntry != leafOccupancy) {
             int currentKey = currentNode->keyArray[nextEntry];
@@ -549,9 +552,10 @@ bool BTreeIndex::keyCorrect(Operator lowOp, Operator highOp, int lowVal, int hig
  * @throws ScanNotInitializedException If no scan has been initialized.
  **/
 void BTreeIndex::endScan() {
-    if (!scanExecuting) {
+    if (!scanExecuting) { // Scan is not initialized.
         throw ScanNotInitializedException();
     }
+    // reset scan specific variables.
     scanExecuting = false;
     nextEntry = -1;
     scanExecuting = false;
