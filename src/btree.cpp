@@ -28,9 +28,9 @@ namespace badgerdb {
  *
  * @param relationName        Name of file.
  * @param outIndexName        Return the name of index file.
- * @param bufMgrIn						Buffer Manager Instance
- * @param attrByteOffset			Offset of attribute, over which index is to be built, in the record
- * @param attrType						Datatype of attribute over which index is built
+ * @param bufMgrIn			  Buffer Manager Instance
+ * @param attrByteOffset	  Offset of attribute, over which index is to be built, in the record
+ * @param attrType			  Datatype of attribute over which index is built
  * @throws  BadIndexInfoException     If the index file already exists for the corresponding attribute, but values in metapage(relationName, attribute byte offset, attribute type etc.) do not match with values received through constructor parameters.
  */
 
@@ -76,7 +76,7 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
     } catch (FileNotFoundException) {  // This means file doesn't exist so create a file.
         file = new BlobFile(outIndexName, true);
 
-        // create a meta page for the new index.
+        // create a meta page for the new index and fill out it's information.
         bufMgr->allocPage(file, headerPageNum, metaPage);
         bufMgr->allocPage(file, rootPageNum, rootPage);
         IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
@@ -117,13 +117,14 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 BTreeIndex::~BTreeIndex() {
     // The destructor should end any scan, clear state variables, unpin pinned pages, and flush index file,
     // and deletes the file object.
-    if (scanExecuting) {
+    if (scanExecuting) {  // If the scan is executing, then end it.
         try {
             endScan();
         } catch (ScanNotInitializedException) {
             std::cout << "No scan has been initialized.";
         }
     }
+    // clears state variables and delete file instance.
     scanExecuting = false;
     bufMgr->flushFile(file);
     delete file;
@@ -216,14 +217,14 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
     //check if there is space within the current leafNode
     if (curNode->spaceAvail > 0) {
         // If there's room in this node
-        int numPage = INTARRAYLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
+        int numNode = INTARRAYLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
 
         // First add the new entry to the end of the array
-        curNode->ridArray[numPage] = rid;
-        curNode->keyArray[numPage] = *((int *)key);
+        curNode->ridArray[numNode] = rid;
+        curNode->keyArray[numNode] = *((int *)key);
 
         // Then bubble sort the entries into the right place
-        for (int i = numPage; i > 0; i++) {
+        for (int i = numNode; i > 0; i++) {
             if (curNode->keyArray[i] < curNode->keyArray[i - 1]) {
                 // Swaps the lower value and the inserted value by saving a temporay variable
                 int tempKey = curNode->keyArray[i - 1];
@@ -238,10 +239,10 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
                 // If it reaches here, that means the new key is in the right spot
                 break;
             }
-            // use up one aviliable space
-            curNode->spaceAvail--;
-            bufMgr->unPinPage(file, pid, true);
         }
+        // use up one aviliable space
+        curNode->spaceAvail--;
+        bufMgr->unPinPage(file, pid, true);
     } else {
         // No room now, need to split and push up
         bufMgr->unPinPage(file, pid, true);
@@ -293,28 +294,53 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
     Page *curPage;
     bufMgr->readPage(file, currentId, curPage);
 
-    int keyInt = *((int *)key);
-
-    std::cout << "Searching for : " << keyInt << std::endl;
-
+    int keyInt = *((int *)key);  // Key of data, but in int form
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
     int numPage = INTARRAYLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
+    int numChild = numPage + 1;                            // How many children nodes this node points to
 
-    // Iteratively search until we reach the leaf node
-    while (!curNode->isLeaf) {
-        for (int i = 0; keyInt < numPage; i++) {
-            std::cout << "comparing against : " << curNode->keyArray[i] << std::endl;
+    //! debug
+    std::cout << "Searching for : " << keyInt << std::endl;
 
-            // Start comparing against the smallest key in this node
-            // If it is true, then the pid at the current location
-            // is the target page
-            if (keyInt < curNode->keyArray[i]) {
-                // found target address
-                break;
+    //  search throught the key list of the current node until we reach the leaf node
+    for (int i = 0; keyInt < numPage; i++) {
+        //! debug
+        std::cout << "comparing against : " << curNode->keyArray[i] << std::endl;
+
+        // Start comparing against the smallest key in this node
+        // If it is true, then the pid at the current location is the target page
+        // Since we are right biased, it's only until the key is less than current node,
+        // otherwise, we'd use <=
+        if (keyInt < curNode->keyArray[i]) {
+            PageId targetId = curNode->pageNoArray[i];
+
+            // ! debug
+            std::cout << "Insert into before: " << curNode->keyArray[i] << std::endl;
+
+            // Found a spot, set the parent of node at the destination as the current node
+            Page *targetPage;
+            bufMgr->readPage(file, targetId, targetPage);
+            LeafNodeInt *targetNode = (LeafNodeInt *)targetPage;
+
+            // Sets the parrent of the leaf node to current node
+            targetNode->parentPage = currentId;
+
+            // Whether we reached the end or not
+            if (curNode->level == 1) {
+                // this means we are right above the target leaf node
+                // Save the result
+                pid = targetId;
+            } else {
+                // means we found a spot, but they're not a leaf node, so we must go even furthur
+                bufMgr->unPinPage(file, currentId, false);
+                searchNode(pid, key, targetId);
             }
-            // Else just continue on with the loop
         }
+        // else just continue on with the loop
     }
+    // By here, there is no place to go, so must down the right most branch
+    bufMgr->unPinPage(file, currentId, false);
+    bufMgr->readPage(file, curNode->pageNoArray[INTARRAYLEAFSIZE], curPage);
 }
 
 // -----------------------------------------------------------------------------
@@ -324,7 +350,7 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
 void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
    //declares a page 
     Page *curPage;
-     // reads the page to split
+    // reads the page to split
     bufMgr->readPage(this->file, pid, curPage);
     // itilaize the non leaf node to split
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
@@ -334,7 +360,7 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
         createRoot = true;
     }
     // Create the new page(sibling)
-    Page * newPage;
+    Page *newPage;
     PageId newPageId;
     // allocate page
     this->bufMgr->allocPage(this->file, newPageId, newPage);
@@ -418,7 +444,7 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
     Page *newLeafPage;
     PageId newLeafPageId;
     // creates new page for split
-    bufMgr-> allocPage(this->file, newLeafPageId, newLeafPage);
+    bufMgr->allocPage(this->file, newLeafPageId, newLeafPage);
     // create a new node
     LeafNodeInt *splitNode = (LeafNodeInt *)newLeafPage;
     // split leafNode into size of node / 2, (size of node / 2)+1
@@ -443,14 +469,14 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
     }
     // else call insert for the splitNode
     else {
-        insertIntoLeafNode(pid,rid, key);
+        insertIntoLeafNode(pid, rid, key);
     }
     // update parent node children array to contain splitNode pageID
     Page *parentPage;
     bufMgr->readPage(this->file, curNode->parentId, parentPage);
     // initialize parent node
     NonLeafNodeInt *parNode = (NonLeafNodeInt *)parentPage;
-    //initialize size of children 
+    // initialize size of children
     int size = 0;
     // update parNode - children array to include split node
     parNode->pageNoArray[size] = newLeafPageId;
@@ -483,6 +509,7 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
  * If another scan is already executing, that needs to be ended here.
  * Set up all the variables for scan. Start from root to find out the leaf page that contains the first RecordID
  * that satisfies the scan parameters. Keep that page pinned in the buffer pool.
+ *
  * @param lowVal	Low value of range, pointer to integer / double / char string
  * @param lowOp		Low operator (GT/GTE)
  * @param highVal	High value of range, pointer to integer / double / char string
@@ -530,16 +557,18 @@ void BTreeIndex::scanNext(RecordId &outRid) {
 
     if (nextEntry == -1) throw IndexScanCompletedException();
     LeafNodeInt *currentNode = (LeafNodeInt *)currentPageData;
+    // If the current page is fully read, then move on to the right riblings page if possible.
     if (currentNode->ridArray[nextEntry].page_number == 0 || nextEntry == leafOccupancy) {
         if (currentNode->rightSibPageNo == 0) {
             throw IndexScanCompletedException();
         } else {
-            bufMgr->unPinPage(file, currentPageNum, false);
+            bufMgr->unPinPage(file, currentPageNum, false);  // move on to right sibling's page.
             currentPageNum = currentNode->rightSibPageNo;
             bufMgr->readPage(file, currentPageNum, currentPageData);
-            nextEntry = 0;
+            nextEntry = 0;  // reset the entry to start at the first entry for the sibling's page.
             currentNode = (LeafNodeInt *)currentPageData;
         }
+        // else, if the page is not fully read then you check if the retrieved key meets the conditions.
     } else {
         if (currentNode->ridArray[nextEntry].page_number != 0 && nextEntry != leafOccupancy) {
             int currentKey = currentNode->keyArray[nextEntry];
@@ -589,9 +618,10 @@ bool BTreeIndex::keyCorrect(Operator lowOp, Operator highOp, int lowVal, int hig
  * @throws ScanNotInitializedException If no scan has been initialized.
  **/
 void BTreeIndex::endScan() {
-    if (!scanExecuting) {
+    if (!scanExecuting) {  // Scan is not initialized.
         throw ScanNotInitializedException();
     }
+    // reset scan specific variables.
     scanExecuting = false;
     nextEntry = -1;
     scanExecuting = false;
