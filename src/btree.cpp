@@ -204,14 +204,14 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
 
     if (curNode->spaceAvail > 0) {
         // If there's room in this node
-        int numPage = INTARRAYLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
+        int numNode = INTARRAYLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
 
         // First add the new entry to the end of the array
-        curNode->ridArray[numPage] = rid;
-        curNode->keyArray[numPage] = *((int *)key);
+        curNode->ridArray[numNode] = rid;
+        curNode->keyArray[numNode] = *((int *)key);
 
         // Then bubble sort the entries into the right place
-        for (int i = numPage; i > 0; i++) {
+        for (int i = numNode; i > 0; i++) {
             if (curNode->keyArray[i] < curNode->keyArray[i - 1]) {
                 // Swaps the lower value and the inserted value by saving a temporay variable
                 int tempKey = curNode->keyArray[i - 1];
@@ -226,10 +226,10 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
                 // If it reaches here, that means the new key is in the right spot
                 break;
             }
-            // use up one aviliable space
-            curNode->spaceAvail--;
-            bufMgr->unPinPage(file, pid, true);
         }
+        // use up one aviliable space
+        curNode->spaceAvail--;
+        bufMgr->unPinPage(file, pid, true);
     } else {
         // No room now, need to split and push up
         bufMgr->unPinPage(file, pid, true);
@@ -246,7 +246,7 @@ void BTreeIndex::createNewRoot(const int PageId Page, const void *key, const Rec
     PageId rootId = Page;
     Page *rootPage;
     // create non lead node for root
-    NonLeafNodeInt rootNode;
+    NonLeafNodeInt *rootNode;
     bufMgr->readPage(this->file, rootId, rootPage);
     // itialize new root node
     rootNode = (NonLeafNodeInt *)rootPage;
@@ -282,28 +282,53 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
     Page *curPage;
     bufMgr->readPage(file, currentId, curPage);
 
-    int keyInt = *((int *)key);
-
-    std::cout << "Searching for : " << keyInt << std::endl;
-
+    int keyInt = *((int *)key);  // Key of data, but in int form
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
     int numPage = INTARRAYLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
+    int numChild = numPage + 1;                            // How many children nodes this node points to
 
-    // Iteratively search until we reach the leaf node
-    while (!curNode->isLeaf) {
-        for (int i = 0; keyInt < numPage; i++) {
-            std::cout << "comparing against : " << curNode->keyArray[i] << std::endl;
+    //! debug
+    std::cout << "Searching for : " << keyInt << std::endl;
 
-            // Start comparing against the smallest key in this node
-            // If it is true, then the pid at the current location
-            // is the target page
-            if (keyInt < curNode->keyArray[i]) {
-                // found target address
-                break;
+    //  search throught the key list of the current node until we reach the leaf node
+    for (int i = 0; keyInt < numPage; i++) {
+        //! debug
+        std::cout << "comparing against : " << curNode->keyArray[i] << std::endl;
+
+        // Start comparing against the smallest key in this node
+        // If it is true, then the pid at the current location is the target page
+        // Since we are right biased, it's only until the key is less than current node,
+        // otherwise, we'd use <=
+        if (keyInt < curNode->keyArray[i]) {
+            PageId targetId = curNode->pageNoArray[i];
+
+            // ! debug
+            std::cout << "Insert into before: " << curNode->keyArray[i] << std::endl;
+
+            // Found a spot, set the parent of node at the destination as the current node
+            Page *targetPage;
+            bufMgr->readPage(file, targetId, targetPage);
+            LeafNodeInt *targetNode = (LeafNodeInt *)targetPage;
+
+            // Sets the parrent of the leaf node to current node
+            targetNode->parentPage = currentId;
+
+            // Whether we reached the end or not
+            if (curNode->level == 1) {
+                // this means we are right above the target leaf node
+                // Save the result
+                pid = targetId;
+            } else {
+                // means we found a spot, but they're not a leaf node, so we must go even furthur
+                bufMgr->unPinPage(file, currentId, false);
+                searchNode(pid, key, targetId);
             }
-            // Else just continue on with the loop
         }
+        // else just continue on with the loop
     }
+    // By here, there is no place to go, so must down the right most branch
+    bufMgr->unPinPage(file, currentId, false);
+    bufMgr->readPage(file, curNode->pageNoArray[INTARRAYLEAFSIZE], curPage);
 }
 
 // -----------------------------------------------------------------------------
@@ -440,6 +465,7 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
  * If another scan is already executing, that needs to be ended here.
  * Set up all the variables for scan. Start from root to find out the leaf page that contains the first RecordID
  * that satisfies the scan parameters. Keep that page pinned in the buffer pool.
+ *
  * @param lowVal	Low value of range, pointer to integer / double / char string
  * @param lowOp		Low operator (GT/GTE)
  * @param highVal	High value of range, pointer to integer / double / char string
