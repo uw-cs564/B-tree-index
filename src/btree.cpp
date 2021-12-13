@@ -290,16 +290,33 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
         //! debug
         std::cout << "comparing against : " << curNode->keyArray[i] << std::endl;
 
+        PageId targetId;
+        bool found = false;
         // Start comparing against the smallest key in this node
         // If it is true, then the pid at the current location is the target page
         // Since we are right biased, it's only until the key is less than current node,
         // otherwise, we'd use <=
         if (keyInt < curNode->keyArray[i]) {
-            PageId targetId = curNode->pageNoArray[i];
+            targetId = curNode->pageNoArray[i];
+            found = true;
 
             // ! debug
             std::cout << "Insert into before: " << curNode->keyArray[i] << std::endl;
 
+        } else if (keyInt > curNode->keyArray[numPage]) {
+            // This is the edge case if the key is larger than all keys in this node, then we jump straight to the
+            // right most pointer
+            targetId = curNode->pageNoArray[numChild - 1];
+            found = true;
+
+            // ! debug
+            std::cout << "Going to the right most pointer, bigger than: " << curNode->keyArray[numPage] << std::endl;
+        } else {
+            // ! debug
+            std::cout << "Something really wrong with search happened" << std::endl;
+        }
+
+        if (found) {
             // Found a spot, set the parent of node at the destination as the current node
             Page *targetPage;
             bufMgr->readPage(file, targetId, targetPage);
@@ -319,13 +336,8 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
                 bufMgr->unPinPage(file, currentId, false);
                 searchNode(pid, key, targetId);
             }
-            // The right spot has been found, therefore the function can end now
-            return;
         }
     }
-    // By here, there is no place to go, so must down the right most branch
-    bufMgr->unPinPage(file, currentId, false);
-    bufMgr->readPage(file, curNode->pageNoArray[INTARRAYLEAFSIZE], curPage);
 }
 
 // -----------------------------------------------------------------------------
