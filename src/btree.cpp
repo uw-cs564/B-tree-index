@@ -154,11 +154,13 @@ void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
     }
 }
 
-// -----------------------------------------------------------------------------
-// BTreeIndex::insertIntoNode
-// this method is for when where is space within a node
-// It finds the correct spot to insert and then inserts a node
-// -----------------------------------------------------------------------------
+/**
+ * This method is called when inserting a value into a non leaf node. It checks to see if there is space available 
+ * and if not it calls splitNode 
+ * 
+ * @param pid			pageId of the page the value is to be inserted into 
+ * @param key			Key to insert, pointer to integer/double/char string
+ **/
 void BTreeIndex::insertIntoNonLeafNode(const PageId pid, const void *key) {
     // Read the current page
     Page *curPage;
@@ -201,7 +203,7 @@ void BTreeIndex::insertIntoNonLeafNode(const PageId pid, const void *key) {
 }
 
 /**
- * Inserts new entry into a leaf node if the node has space left, if not, splitLeafNode will be called
+ * Inserts new entry into a leaf node if the node has space left, if not, splitLeafNode will be called. 
  *
  * @param pid           Page ID of leaf node
  * @param rid			Record ID of a record whose entry is getting inserted into the index.
@@ -250,10 +252,14 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
     }
 }
 
-// -----------------------------------------------------------------------------
-// BTreeIndex::create new Root
-// this method is for when to create a new Root node while propagating
-// -----------------------------------------------------------------------------
+/**
+ * This method is called when the top of the tree is reached and we have to create a new root node. 
+ * 
+ * @param key			Key to insert, pointer to integer/double/char string
+ * @param leftChild			Key to insert, pointer to integer/double/char string
+ * @param rightChild			Key to insert, pointer to integer/double/char string
+ * @param key			Key to insert, pointer to integer/double/char string
+ **/
 void BTreeIndex::createNewRoot(const void *key,  const PageId leftChild, const PageId rightChild, bool aboveLeaf) {
     //declare rootID 
     PageId rootId;
@@ -286,8 +292,8 @@ void BTreeIndex::createNewRoot(const void *key,  const PageId leftChild, const P
 /**
  * Recursive function to traverse the B+ Tree and find the node with the coorsponding key value
  *
- * @param pid   Page ID of the result
  * @param key   the void pointer of the key to be searched
+ * @param currentId    
  */
 void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
     // Reads the content of currentId into curPage
@@ -296,14 +302,14 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
 
     int keyInt = *((int *)key);  // Key of data, but in int form
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
-    int numPage = INTARRAYLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
-    int numChild = numPage + 1;                            // How many children nodes this node points to
+    int numPage = INTARRAYNONLEAFSIZE - curNode->spaceAvail;  // How many pages are in this node
+    int numChild = numPage + 1;                               // How many children nodes this node points to
 
     //! debug
     std::cout << "Searching for : " << keyInt << std::endl;
 
     //  search throught the key list of the current node until we reach the leaf node
-    for (int i = 0; keyInt < numPage; i++) {
+    for (int i = 0; i < numPage; i++) {
         //! debug
         std::cout << "comparing against : " << curNode->keyArray[i] << std::endl;
 
@@ -327,6 +333,7 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
 
             // Whether we reached the end or not
             if (curNode->level == 1) {
+                bufMgr->unPinPage(file, currentId, false);
                 // this means we are right above the target leaf node
                 // Save the result
                 pid = targetId;
@@ -335,8 +342,9 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
                 bufMgr->unPinPage(file, currentId, false);
                 searchNode(pid, key, targetId);
             }
+            // The right spot has been found, therefore the function can end now
+            return;
         }
-        // else just continue on with the loop
     }
     // By here, there is no place to go, so must down the right most branch
     bufMgr->unPinPage(file, currentId, false);
@@ -345,6 +353,8 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
 
 /**
  * This method is called when a node is at max capacity already so it needs to be split. 
+ * It is a recursive method that pushes values up the tree as it is split
+ * if the given node is full then splitNonLeafNode is called again from within. 
  *
  * @param pid   Page ID of the result
  * @param key   the void pointer of the key to be searched
@@ -375,6 +385,9 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
         // update the children of the new node
         newNode->pageNoArray[i] = curNode->pageNoArray[INTARRAYNONLEAFSIZE / 2 + i + 1];
     }
+    //addedNewNode keeps track of where the new node was added
+    //this will be used to find which key to push up  
+    bool addedNewNode = false;
     //check where to insert value 
     //compare to the last value in the curNode and if it is less than or equal then insert into current Node 
     if(curNode->keyArray[INTARRAYLEAFSIZE / 2 - 1] >= (int)key) {
@@ -384,17 +397,26 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
     // else call insert on the newNode created 
     else {
         insertIntoNonLeafNode(newPageId, key);
+        addedNewNode = true;
     }
     //insert value 
     //unpin current page 
     bufMgr->unPinPage(file, pid, false);
     //unpin new page created 
     bufMgr->unPinPage(file, newPageId, false);
-
     //value to push up 
     //right biased 
     //always going to be the middle value which is the 3rd array value of left node 
-    int pushedKey = curNode->keyArray[2];
+    int pushedKey = false;
+    //value to push up 
+    //right biased 
+    if(addedNewNode){
+        pushedKey = curNode->keyArray[INTARRAYLEAFSIZE / 2];
+    }
+    else{
+        pushedKey = newNode->keyArray[0];
+    }
+
     //check if parentId is null, if so call create new root 
     if(curNode->parentId == NULL){
         bool aboveLeaf = false;
@@ -423,21 +445,26 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
         bufMgr->unPinPage(this->file, curNode->parentId, parentPage);
             // check if parent has space available 
             if (parentNode->spaceAvail > 0) {
-            // add newNode as child of parent node
+            //unpin page
+            bufMgr->unPinPage(this->file, curNode->parentId, parentPage);
+            //insert value into parent 
             insertIntoNonLeafNode(curNode->parentId, (void*)pushedKey);
             } 
             //if no spaceAvail, call splitNonLeafNode
             else {
             splitNonLeafNode(curNode->parentId,(void*)pushedKey); 
-            //search 
-            //insert 
             }
     }
     }
 
-// -----------------------------------------------------------------------------
-// BTreeIndex::splitNode -  Leaf nodes
-// -----------------------------------------------------------------------------
+/**
+ * This method is called when a node is at max capacity already so it needs to be split. 
+ * This method also called insert, splitNonLeafNode based on which case it is 
+ *
+ * @param pid   Page ID of the result
+ * @param rid   RecordId of the result 
+ * @param key   the void pointer of the key to be searched
+ */
 void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId pid) {
     // right biased
     // creates page of leaf node
@@ -521,12 +548,6 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
             }
     }
     }
-
-
-
-
-
-
 
     // -----------------------------------------------------------------------------
     // BTreeIndex::startScan

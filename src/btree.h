@@ -166,7 +166,7 @@ struct NonLeafNodeInt {
     /**
      * Stores page numbers of parent page number
      */
-    PageId parentPage;
+    PageId parentPage = NULL;
 };
 
 /**
@@ -331,7 +331,7 @@ class BTreeIndex {
      */
     void searchNode(PageId& pid, const void* key, PageId currentId);
 
-    void insertIntoNonLeafNode(const PageId pid, const RecordId rid, const void* key);
+    void insertIntoNonLeafNode(const PageId pid, const void* key);
 
     /**
      * Inserts new entry into a leaf node if the node has space left, if not, splitLeafNode will be called
@@ -342,11 +342,36 @@ class BTreeIndex {
      */
     void insertIntoLeafNode(const PageId pid, const RecordId rid, const void* key);
 
-    void BTreeIndex::createNewRoot(const int PageId pid, const void *key, const RecordId rid, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
-    
+    /**
+     * This method is called when the top of the tree is reached and we have to create a new root node. 
+     * 
+     * @param key			Key to insert, pointer to integer/double/char string
+     * @param leftChild			 the PageId of the left child of the new root node 
+     * @param rightChild			the PageId of the right child of the new root node 
+     * @param aboveLeaf			Boolean value that is true if this node is the parent of a LeafNode 
+     **/
+    void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
+
+    /**
+     * This method is called when a node is at max capacity already so it needs to be split. 
+     * This method also called insert, splitNonLeafNode based on which case it is 
+     *
+     * @param pid   Page ID of the result
+     * @param rid   RecordId of the result 
+     * @param key   the void pointer of the key to be searched
+     */
     void splitLeafNode(const void* key, const RecordId rid, PageId pid);
 
-    void splitNonLeafNode(PageId pid, NonLeafNodeInt currNode, const void* key, const RecordId rid, const PageId leftChild, const PageId rightChild);
+
+    /**
+     * This method is called when a node is at max capacity already so it needs to be split. 
+     * It is a recursive method that pushes values up the tree as it is split
+     * if the given node is full then splitNonLeafNode is called again from within. 
+     *
+     * @param pid   Page ID of the result
+     * @param key   the void pointer of the key to be searched
+     */
+    void BTreeIndex::splitNonLeafNode(const PageId Page, const void *key);
 
     /**
      * @brief Checks if the key satisfies the conditions based on the operators and values.
