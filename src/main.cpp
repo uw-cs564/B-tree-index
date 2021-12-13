@@ -350,6 +350,8 @@ int intScan(BTreeIndex *index, int lowVal, Operator lowOp, int highVal, Operator
 
     int numResults = 0;
 
+    std::cout << "hello" << std::endl;
+
     try {
         std::cout << "Start scan" << std::endl;
         index->startScan(&lowVal, lowOp, &highVal, highOp);

@@ -141,6 +141,7 @@ BTreeIndex::~BTreeIndex() {
 void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
     if (insertInRoot) {
         //! debug
+        std::cout << "---------------------------" << std::endl;
         std::cout << "Insert entry: " << *((int *)key) << " into rootnode" << std::endl;
 
         // case 1 - there hasn't been a split yet, ie, all nodes inserted into root node (leaf node)
@@ -167,12 +168,21 @@ void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
  * @param key			Key to insert, pointer to integer/double/char string
  **/
 void BTreeIndex::insertIntoNonLeafNode(const PageId pid, const void *key) {
+    //! debug
+    // std::cout << "Print self" << std::endl;
+    // bufMgr->printSelf();
+    std::cout << "" << std::endl;
+    std::cout << "insert into non leaf: " << *((int *)key) << std::endl;
+
     // declare and read the current page
     Page *curPage;
     bufMgr->readPage(file, pid, curPage);
 
     // creating and initializing a node
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
+
+    std::cout << "Space left: " << curNode->spaceAvail << std::endl;
+
     // check if there is any space available within this non leaf node
     if (curNode->spaceAvail > 0) {
         // count how many spaces are full within node
@@ -260,12 +270,12 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
 }
 
 /**
- * This method is called when the top of the tree is reached and we have to create a new root node. 
- * 
+ * This method is called when the top of the tree is reached and we have to create a new root node.
+ *
  * @param key			Key to insert, pointer to integer/double/char string
- * @param leftChild		The PageId of the leftchild of the new root 
- * @param rightChild	The PageId of the rightchild of the new root 
- * @param aboveLeaf		Bool value that tells if the new root to create will be above LeafNodes 
+ * @param leftChild		The PageId of the leftchild of the new root
+ * @param rightChild	The PageId of the rightchild of the new root
+ * @param aboveLeaf		Bool value that tells if the new root to create will be above LeafNodes
  **/
 void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const PageId rightChild, bool aboveLeaf) {
     // declare rootID
@@ -292,6 +302,9 @@ void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const Pa
     bufMgr->readPage(file, headerPageNum, metaPage);
     IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
     meta->rootPageNo = rootId;
+
+    insertInRoot = false;
+
     // unpin page
     this->bufMgr->unPinPage(this->file, rootId, true);
 }
@@ -377,39 +390,46 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
  * @param key   the void pointer of the key to be searched
  */
 void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
-    // declares a page
+    // ! debug
+    std::cout << "Splitting non leaf node" << std::endl;
+
     Page *curPage;
-    // reads the page to split
     bufMgr->readPage(this->file, pid, curPage);
-    // itilaize the non leaf node to split
+    // initialize the non leaf node to split
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
+
     // Create the new page(sibling)
+    // allocate page
     Page *newPage;
     PageId newPageId;
-    // allocate page
     this->bufMgr->allocPage(this->file, newPageId, newPage);
+
     // create node
-    NonLeafNodeInt *newNode = (NonLeafNodeInt *)newPage;
     // assign variables to sibling
+    NonLeafNodeInt *newNode = (NonLeafNodeInt *)newPage;
     newNode->level = curNode->level;
     newNode->parentId = curNode->parentId;
+
     // udpdate the new nodes values
-    // the new node will get all the larger values 
-    //if max value is odd then we will split 2,3 
+    // the new node will get all the larger values
+    // if max value is odd then we will split 2,3
     int odd = false;
     for (int i = 0; i < INTARRAYNONLEAFSIZE / 2; i++) {
         // sets the split node to the second half values of the current node
         newNode->keyArray[i] = curNode->keyArray[INTARRAYNONLEAFSIZE / 2 + i];
-        // delete the values from the current Node after adding to split node
-        // no need to delete 
-        //newNode->keyArray[INTARRAYNONLEAFSIZE / 2 + i] = NULL;
+
         // update the children of the new node
         newNode->pageNoArray[i] = curNode->pageNoArray[INTARRAYNONLEAFSIZE / 2 + i];
     }
-    //if INTARRAYNONLEAFSIZE is odd
-    //assign the largest value to the newNode 
-    if (INTARRAYNONLEAFSIZE % 2 != 0){
-        newNode->keyArray[INTARRAYNONLEAFSIZE/2] = curNode->keyArray[INTARRAYNONLEAFSIZE-1];
+
+    // update spaceAvail
+    curNode->spaceAvail = INTARRAYNONLEAFSIZE / 2;
+    newNode->spaceAvail = INTARRAYNONLEAFSIZE / 2;
+    // if INTARRAYNONLEAFSIZE is odd
+    // assign the largest value to the newNode
+    if (INTARRAYNONLEAFSIZE % 2 != 0) {
+        newNode->keyArray[INTARRAYNONLEAFSIZE / 2] = curNode->keyArray[INTARRAYNONLEAFSIZE - 1];
+        newNode->spaceAvail--;
     }
 
     // addedNewNode keeps track of where the new node was added
@@ -419,10 +439,16 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
     // compare to the last value in the curNode and if it is less than or equal then insert into current Node
     if (curNode->keyArray[INTARRAYLEAFSIZE / 2 - 1] >= *((int *)key)) {
         // call insert for the curNode
+        //! Debug
+        std::cout << "INSERT CURRENT NODE " << pid << std::endl;
+
         insertIntoNonLeafNode(pid, key);
     }
     // else call insert on the newNode created
     else {
+        //! Debug
+        std::cout << "INSERT NEW NODE " << newPageId << std::endl;
+
         insertIntoNonLeafNode(newPageId, key);
         addedNewNode = true;
     }
@@ -454,10 +480,10 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
         // new node created pageID
         PageId rightChild = newPageId;
         // call create new root node
-        createNewRoot((void *)pushedKey, leftChild, rightChild, false);
+        createNewRoot(&pushedKey, leftChild, rightChild, false);
         // update the parentId of the two nodes created
     }
-    // parent already exisits
+    // parent already exists
 
     else {
         // update parent node to have a new child
@@ -477,9 +503,9 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
             insertIntoNonLeafNode(curNode->parentId, (void *)pushedKey);
         }
         // if no spaceAvail, call splitNonLeafNode
-        else {
-            splitNonLeafNode(curNode->parentId, (void *)pushedKey);
-        }
+        // else {
+        //     splitNonLeafNode(curNode->parentId, (void *)pushedKey);
+        // }
     }
 }
 
@@ -517,16 +543,16 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
         // curNode->keyArray[INTARRAYLEAFSIZE / 2 + i] = NULL;
         // curNode->ridArray[INTARRAYLEAFSIZE / 2 + i] = NULL;
     }
-    //if the size of node 
-    //assign the largest value in node to the split Node
-    //this will split the values to d, d+1
-    if (INTARRAYLEAFSIZE % 2 != 0){
-        splitNode->keyArray[INTARRAYLEAFSIZE/2] = curNode->keyArray[INTARRAYLEAFSIZE-1];
-        splitNode->ridArray[INTARRAYLEAFSIZE/2] = curNode->ridArray[INTARRAYLEAFSIZE-1];
+    // if the size of node
+    // assign the largest value in node to the split Node
+    // this will split the values to d, d+1
+    if (INTARRAYLEAFSIZE % 2 != 0) {
+        splitNode->keyArray[INTARRAYLEAFSIZE / 2] = curNode->keyArray[INTARRAYLEAFSIZE - 1];
+        splitNode->ridArray[INTARRAYLEAFSIZE / 2] = curNode->ridArray[INTARRAYLEAFSIZE - 1];
         splitNode->spaceAvail = INTARRAYLEAFSIZE / 2 - 1;
     }
-    //if it is even, then the space avail is going to be the size of the intarray/2
-    else{
+    // if it is even, then the space avail is going to be the size of the intarray/2
+    else {
         splitNode->spaceAvail = INTARRAYLEAFSIZE / 2;
     }
     // update split node attributes
@@ -609,6 +635,8 @@ void BTreeIndex::startScan(const void *lowValParm, const Operator lowOpParm,
         (highOpParm != LT && highOpParm != LTE)) {
         throw BadOpcodesException();
     }
+    // ! debug
+    std::cout << "Inside start scan" << std::endl;
 
     lowOp = lowOpParm;
     highOp = highOpParm;
@@ -639,6 +667,9 @@ void BTreeIndex::scanNext(RecordId &outRid) {
     if (!scanExecuting) throw ScanNotInitializedException();
     // Finishing scan
     if (nextEntry == -1) throw IndexScanCompletedException();
+
+    // ! debug
+    std::cout << "Scanning next" << std::endl;
 
     LeafNodeInt *currentNode = (LeafNodeInt *)currentPageData;
     // If the current page is fully read, then move on to the right riblings page if possible.
