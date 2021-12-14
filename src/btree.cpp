@@ -311,7 +311,7 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
 
         //! debug
         std::cout << "Insert " << *((int *)key) << "success" << std::endl;
-        printArray(curNode->keyArray, INTARRAYLEAFSIZE);
+        // printArray(curNode->keyArray, INTARRAYLEAFSIZE);
 
     } else {
         // No room now, need to split and push up
@@ -354,6 +354,7 @@ void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const Pa
     bufMgr->readPage(file, headerPageNum, metaPage);
     IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
     meta->rootPageNo = rootId;
+    rootPageNum = rootId;
 
     insertInRoot = false;
 
@@ -404,14 +405,14 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
             // ! debug
             std::cout << "Insert into before: " << curNode->keyArray[i] << std::endl;
 
-        } else if (keyInt > curNode->keyArray[numPage]) {
+        } else if (keyInt > curNode->keyArray[numPage - 1]) {
             // This is the edge case if the key is larger than all keys in this node, then we jump straight to the
             // right most pointer
             targetId = curNode->pageNoArray[numChild - 1];
             found = true;
 
             // ! debug
-            std::cout << "Going to the right most pointer, bigger than: " << curNode->keyArray[numPage] << std::endl;
+            std::cout << "Going to the right most pointer, bigger than: " << curNode->keyArray[numPage - 1] << std::endl;
         }
 
         if (found) {
@@ -423,12 +424,19 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
             // Sets the parrent of the leaf node to current node
             targetNode->parentId = currentId;
 
+            // ! debug
+            std::cout << "FOUND" << std::endl;
+            std::cout << "First key in found" << targetNode->keyArray[0] << std::endl;
+
             // Whether we reached the end or not
             if (curNode->level == 1) {
                 bufMgr->unPinPage(file, currentId, false);
                 // this means we are right above the target leaf node
                 // Save the result
                 pid = targetId;
+                // ! debug
+                std::cout << "ending search" << std::endl;
+                break;
             } else {
                 // means we found a spot, but they're not a leaf node, so we must go even furthur
                 bufMgr->unPinPage(file, currentId, false);
@@ -513,6 +521,8 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
         curNode->keyArray[INTARRAYNONLEAFSIZE - 1] = -1;
         newNode->spaceAvail--;
         newNode->pageNoArray[INTARRAYNONLEAFSIZE / 2] = curNode->pageNoArray[INTARRAYNONLEAFSIZE];
+    } else {
+        newNode->pageNoArray[INTARRAYNONLEAFSIZE / 2 + 1] = curNode->pageNoArray[INTARRAYNONLEAFSIZE];
     }
 
     //! Debug
@@ -643,8 +653,8 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
         // curNode->ridArray[INTARRAYLEAFSIZE / 2 + i] = (RecordId)-1;
     }
 
-    splitNode->spaceAvail = INTARRAYLEAFSIZE / 2;
-    curNode->spaceAvail = INTARRAYLEAFSIZE / 2;
+    splitNode->spaceAvail = INTARRAYLEAFSIZE - (INTARRAYLEAFSIZE / 2);
+    curNode->spaceAvail = INTARRAYLEAFSIZE - (INTARRAYLEAFSIZE / 2);
 
     // if the size of node
     // assign the largest value in node to the split Node
@@ -654,7 +664,7 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
         curNode->keyArray[INTARRAYLEAFSIZE - 1] = -1;
 
         splitNode->ridArray[INTARRAYLEAFSIZE / 2] = curNode->ridArray[INTARRAYLEAFSIZE - 1];
-        // splitNode->spaceAvail--;
+        splitNode->spaceAvail--;
     }
 
     //! Debug
@@ -704,6 +714,11 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
         // new node created pageID
         PageId rightChild = newLeafPageId;
         // call create new root node
+
+        //! Debug
+        std::cout << "Creating a new root " << std::endl;
+        std::cout << "Pushing up key: " << pushedKey << std::endl;
+
         createNewRoot(&pushedKey, leftChild, rightChild, true);
         // update the parentId of the two nodes created
     }
