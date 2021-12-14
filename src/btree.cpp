@@ -83,6 +83,11 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
         file = new BlobFile(outIndexName, true);
 
         // create a meta page for the new index and fill out it's information.
+
+        //! debug
+        std::cout << "Headerpage num: " << headerPageNum << std::endl;
+        std::cout << "Rootpage num: " << rootPageNum << std::endl;
+
         bufMgr->allocPage(file, headerPageNum, metaPage);
         bufMgr->allocPage(file, rootPageNum, rootPage);
         IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
@@ -92,6 +97,7 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
 
         // Create the root.
         NonLeafNodeInt *root = (NonLeafNodeInt *)rootPage;
+        root->spaceAvail = INTARRAYNONLEAFSIZE;
 
         FileScan FS(relationName, bufMgr);
         // get every tuple from the relation and load into the new file.
@@ -287,7 +293,7 @@ void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const Pa
     // declare rootPage
     Page *rootPage;
     // allocate a new page for root node
-    bufMgr->allocPage(this->file, rootId, rootPage);
+    bufMgr->allocPage(file, rootId, rootPage);
     // initialize new root node
     NonLeafNodeInt *rootNode = (NonLeafNodeInt *)rootPage;
     // update new non leaf node
@@ -301,7 +307,7 @@ void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const Pa
     rootNode->pageNoArray[0] = leftChild;
     // add right child
     rootNode->pageNoArray[1] = rightChild;
-    rootNode->spaceAvail--;
+    rootNode->spaceAvail = INTARRAYNONLEAFSIZE - 1;
 
     Page *metaPage;
     bufMgr->readPage(file, headerPageNum, metaPage);
@@ -383,7 +389,7 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
             } else {
                 // means we found a spot, but they're not a leaf node, so we must go even furthur
                 bufMgr->unPinPage(file, currentId, false);
-                // searchNode(pid, key, targetId);
+                searchNode(pid, key, targetId);
             }
         }
     }
@@ -396,7 +402,7 @@ void printArray(const int *arr, int size) {
         }
         std::cout << i << ": " << arr[i] << ",  ";
     }
-    std::cout << "" << std::endl;
+    std::cout << "#######################################################" << std::endl;
 }
 
 /**
@@ -412,7 +418,7 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
     std::cout << "Splitting non leaf node" << std::endl;
 
     Page *curPage;
-    bufMgr->readPage(this->file, pid, curPage);
+    bufMgr->readPage(file, pid, curPage);
     // initialize the non leaf node to split
     NonLeafNodeInt *curNode = (NonLeafNodeInt *)curPage;
 
@@ -422,9 +428,13 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
 
     // Create the new page(sibling)
     // allocate page
+
     Page *newPage;
     PageId newPageId;
-    this->bufMgr->allocPage(this->file, newPageId, newPage);
+
+    std::cout << "BROKEN HERE BEFORE ALLOC" << std::endl;
+    bufMgr->allocPage(file, newPageId, newPage);
+    std::cout << "BROKEN HERE AFTER ALLOC" << std::endl;
 
     // create node
     // assign variables to sibling
@@ -435,32 +445,39 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
     // udpdate the new nodes values
     // the new node will get all the larger values
     // if max value is odd then we will split 2,3
-    int odd = false;
+    // int odd = false;
     for (int i = 0; i < INTARRAYNONLEAFSIZE / 2; i++) {
         // sets the split node to the second half values of the current node
         newNode->keyArray[i] = curNode->keyArray[INTARRAYNONLEAFSIZE / 2 + i];
+        curNode->keyArray[INTARRAYNONLEAFSIZE / 2 + i] = -1;
 
         // update the children of the new node
         newNode->pageNoArray[i] = curNode->pageNoArray[INTARRAYNONLEAFSIZE / 2 + i];
+        curNode->pageNoArray[INTARRAYNONLEAFSIZE / 2 + i] = -1;
     }
 
     // update spaceAvail
     curNode->spaceAvail = INTARRAYNONLEAFSIZE / 2;
     newNode->spaceAvail = INTARRAYNONLEAFSIZE / 2;
+
     // if INTARRAYNONLEAFSIZE is odd
     // assign the largest value to the newNode
     if (INTARRAYNONLEAFSIZE % 2 != 0) {
         newNode->keyArray[INTARRAYNONLEAFSIZE / 2] = curNode->keyArray[INTARRAYNONLEAFSIZE - 1];
+        curNode->keyArray[INTARRAYNONLEAFSIZE / 2] = -1;
         newNode->spaceAvail--;
+        newNode->pageNoArray[INTARRAYNONLEAFSIZE / 2] = curNode->pageNoArray[INTARRAYNONLEAFSIZE];
     }
 
     //! Debug
     std::cout << "curNode start: " << curNode->keyArray[0] << std::endl;
-    printArray(curNode->keyArray, INTARRAYNONLEAFSIZE / 2);
+    // std::cout << "curNode ends: " << curNode->keyArray[INTARRAYNONLEAFSIZE - 1] << std::endl;
+    printArray(curNode->keyArray, INTARRAYNONLEAFSIZE);
 
     //! Debug
     std::cout << "newNode start: " << newNode->keyArray[0] << std::endl;
-    printArray(newNode->keyArray, INTARRAYNONLEAFSIZE / 2);
+    // std::cout << "newNode ends: " << newNode->keyArray[INTARRAYNONLEAFSIZE - 1] << std::endl;
+    printArray(newNode->keyArray, INTARRAYNONLEAFSIZE);
 
     // addedNewNode keeps track of where the new node was added
     // this will be used to find which key to push up
@@ -500,7 +517,7 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
     }
 
     // check if parentId is null, if so call create new root
-    if (curNode->parentId == NULL) {
+    if (curNode->parentId == -1) {
         bool aboveLeaf = false;
         if (curNode->level == 1) {
             aboveLeaf = true;
@@ -552,14 +569,14 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
     // creates page of leaf node
     Page *leafPage;
     // reads the page to split
-    bufMgr->readPage(this->file, pid, leafPage);
+    bufMgr->readPage(file, pid, leafPage);
     // create node
     LeafNodeInt *curNode = (LeafNodeInt *)leafPage;
     // create new node to split into
     Page *newLeafPage;
     PageId newLeafPageId;
     // creates new page for split
-    bufMgr->allocPage(this->file, newLeafPageId, newLeafPage);
+    bufMgr->allocPage(file, newLeafPageId, newLeafPage);
     // create a new node
     LeafNodeInt *splitNode = (LeafNodeInt *)newLeafPage;
     // split leafNode into size of node / 2, (size of node / 2)+1
@@ -611,7 +628,7 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
     }
 
     // check if parentId is null, if so call create new root
-    if (curNode->parentId == NULL) {
+    if (curNode->parentId == -1) {
         // current node pid
         PageId leftChild = pid;
         // new node created pageID

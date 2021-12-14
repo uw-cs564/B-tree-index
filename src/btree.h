@@ -41,14 +41,14 @@ enum Operator {
 /**
  * @brief Number of key slots in B+Tree leaf for INTEGER key.
  */
-//                                              sibling ptr          key             rid
-const int INTARRAYLEAFSIZE = (Page::SIZE - sizeof(PageId)) / (sizeof(int) + sizeof(RecordId));
+//                                              sibling ptr   spaceAvil        parentId         used              key             rid
+const int INTARRAYLEAFSIZE = (Page::SIZE - sizeof(PageId) - sizeof(int) - sizeof(PageId) - sizeof(int)) / (sizeof(int) + sizeof(RecordId));
 
 /**
  * @brief Number of key slots in B+Tree non-leaf for INTEGER key.
  */
-//                                                  level      extra pageNo           key            pageNo
-const int INTARRAYNONLEAFSIZE = (Page::SIZE - sizeof(int) - sizeof(PageId)) / (sizeof(int) + sizeof(PageId));
+//                                                  level      extra pageNo    spaceAvil      parentId             used            key            pageNo
+const int INTARRAYNONLEAFSIZE = (Page::SIZE - sizeof(int) - sizeof(PageId) - sizeof(int) - sizeof(PageId) - sizeof(int)) / (sizeof(int) + sizeof(PageId));
 
 /**
  * @brief Structure to store a key-rid pair. It is used to pass the pair to functions that
@@ -137,7 +137,7 @@ struct NonLeafNodeInt {
     /**
      * Level of the node in the tree.
      */
-    int level = 0;
+    int level;
 
     /**
      * Parent node's id
@@ -157,17 +157,9 @@ struct NonLeafNodeInt {
     /**
      * Stores available space in Node. Decrements as new array are added
      */
-    int spaceAvail = 10;
+    int spaceAvail;
 
-    /**
-     * Checks if node is a leaf or Non leaf node
-     */
-    bool isLeaf = false;
-
-    /**
-     * Stores page numbers of parent page number
-     */
-    PageId parentPage = NULL;
+    int used;
 };
 
 /**
@@ -193,18 +185,15 @@ struct LeafNodeInt {
     /**
      * Stores available space in Node
      */
-    int spaceAvail = INTARRAYLEAFSIZE;
-
-    /**
-     * Checks if node is a leaf or Non leaf node
-     */
-    bool isLeaf = true;
+    int spaceAvail;
 
     /**
      * Stores page numbers of parent page number
-     * This is 0 if no parent page exists
+     * This is -1 if no parent page exists
      */
     PageId parentId;
+
+    int used;
 };
 
 /**
