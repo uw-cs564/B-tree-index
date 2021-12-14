@@ -137,7 +137,7 @@ struct NonLeafNodeInt {
     /**
      * Level of the node in the tree.
      */
-    int level;
+    int level = 0;
 
     /**
      * Parent node's id
@@ -343,12 +343,12 @@ class BTreeIndex {
     void insertIntoLeafNode(const PageId pid, const RecordId rid, const void* key);
 
     /**
-     * This method is called when the top of the tree is reached and we have to create a new root node. 
-     * 
+     * This method is called when the top of the tree is reached and we have to create a new root node.
+     *
      * @param key			Key to insert, pointer to integer/double/char string
-     * @param leftChild		The PageId of the leftchild of the new root 
-     * @param rightChild	The PageId of the rightchild of the new root 
-     * @param aboveLeaf		Bool value that tells if the new root to create will be above LeafNodes 
+     * @param leftChild		The PageId of the leftchild of the new root
+     * @param rightChild	The PageId of the rightchild of the new root
+     * @param aboveLeaf		Bool value that tells if the new root to create will be above LeafNodes
      **/
     void createNewRoot(const void* key, const PageId leftChild, const PageId rightChild, bool aboveLeaf);
 

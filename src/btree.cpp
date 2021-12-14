@@ -284,7 +284,7 @@ void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const Pa
     Page *rootPage;
     // allocate a new page for root node
     bufMgr->allocPage(this->file, rootId, rootPage);
-    // itialize new root node
+    // initialize new root node
     NonLeafNodeInt *rootNode = (NonLeafNodeInt *)rootPage;
     // update new non leaf node
     if (aboveLeaf) {
@@ -292,12 +292,13 @@ void BTreeIndex::createNewRoot(const void *key, const PageId leftChild, const Pa
     } else {
         rootNode->level = 0;
     }
-    rootNode->keyArray[INTARRAYLEAFSIZE - rootNode->spaceAvail] = *((int *)key);
+    rootNode->keyArray[0] = *((int *)key);
     // add left child
     rootNode->pageNoArray[0] = leftChild;
     // add right child
     rootNode->pageNoArray[1] = rightChild;
     rootNode->spaceAvail--;
+
     Page *metaPage;
     bufMgr->readPage(file, headerPageNum, metaPage);
     IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
@@ -327,6 +328,9 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
 
     //! debug
     std::cout << "Searching for : " << keyInt << std::endl;
+
+    // ! debug
+    std::cout << "Current level:  " << curNode->level << std::endl;
 
     //  search throught the key list of the current node until we reach the leaf node
     for (int i = 0; i < numPage; i++) {
@@ -375,9 +379,15 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
             } else {
                 // means we found a spot, but they're not a leaf node, so we must go even furthur
                 bufMgr->unPinPage(file, currentId, false);
-                searchNode(pid, key, targetId);
+                // searchNode(pid, key, targetId);
             }
         }
+    }
+}
+
+void printArray(const int *arr, int size) {
+    for (int i = 0; i < size; i++) {
+        std::cout << arr[i] << std::endl;
     }
 }
 
@@ -431,6 +441,17 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
         newNode->keyArray[INTARRAYNONLEAFSIZE / 2] = curNode->keyArray[INTARRAYNONLEAFSIZE - 1];
         newNode->spaceAvail--;
     }
+
+    int x[3] = {88, 88, 88};
+    printArray(x, 3);
+
+    //! Debug
+    std::cout << "curNode start: " << curNode->keyArray[0] << std::endl;
+    printArray(curNode->keyArray, INTARRAYNONLEAFSIZE / 2);
+
+    //! Debug
+    std::cout << "newNode start: " << newNode->keyArray[0] << std::endl;
+    printArray(newNode->keyArray, INTARRAYNONLEAFSIZE / 2);
 
     // addedNewNode keeps track of where the new node was added
     // this will be used to find which key to push up
