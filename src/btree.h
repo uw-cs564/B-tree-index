@@ -153,10 +153,11 @@ struct NonLeafNodeInt {
      * Stores page numbers of child pages which themselves are other non-leaf/leaf nodes in the tree.
      */
     PageId pageNoArray[INTARRAYNONLEAFSIZE + 1];
+
     /**
      * Stores available space in Node. Decrements as new array are added
      */
-    int spaceAvail = INTARRAYNONLEAFSIZE;
+    int spaceAvail = 10;
 
     /**
      * Checks if node is a leaf or Non leaf node
