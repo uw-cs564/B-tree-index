@@ -21,6 +21,8 @@
 
 namespace badgerdb {
 
+void printArray(const int *arr, int size);
+
 /**
  * BTreeIndex Constructor.
  * Check to see if the corresponding index file exists. If so, open the file.
@@ -51,13 +53,13 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
     // Want to begin by inserting into the root
     insertInRoot = true;
     Page *metaPage;
-    Page *rootPage;
+    // Page *rootPage;
+
     // check correct datatype
     if (attrType != INTEGER) {
         std::cout << "Incorrect data type.";
         return;
     }
-
     // Creating the index file name, taken from the project specification
     std::ostringstream indexStr;
     indexStr << relationName << '.' << attrByteOffset;
@@ -80,26 +82,50 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
         bufMgr->unPinPage(file, headerPageNum, false);
 
     } catch (FileNotFoundException) {  // This means file doesn't exist so create a file.
-        file = new BlobFile(outIndexName, true);
+        // file = new BlobFile(outIndexName, true);
+
+        BlobFile *newFile = new BlobFile(outIndexName, true);
+        file = (File *)newFile;
+        PageId metaPageId;
+        Page *metaPage;
+        bufMgr->allocPage(file, metaPageId, metaPage);
+
+        IndexMetaInfo *metaInfo = (IndexMetaInfo *)metaPage;
+        strcpy(metaInfo->relationName, relationName.c_str());
+        metaInfo->attrByteOffset = attrByteOffset;
+        metaInfo->attrType = attrType;
+        headerPageNum = metaPageId;
 
         // create a meta page for the new index and fill out it's information.
-
-        //! debug
-        std::cout << "Headerpage num: " << headerPageNum << std::endl;
-        std::cout << "Rootpage num: " << rootPageNum << std::endl;
-
-        bufMgr->allocPage(file, headerPageNum, metaPage);
-        bufMgr->allocPage(file, rootPageNum, rootPage);
-        IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
-        strncpy(meta->relationName, relationName.c_str(), 20);
-        meta->attrType = attrType;
-        meta->rootPageNo = rootPageNum;
+        // bufMgr->allocPage(file, headerPageNum, metaPage);
+        // bufMgr->allocPage(file, rootPageNum, rootPage);
+        // IndexMetaInfo *meta = (IndexMetaInfo *)metaPage;
+        // strncpy(meta->relationName, relationName.c_str(), 20);
+        // meta->attrType = attrType;
+        // meta->rootPageNo = rootPageNum;
 
         // Create the root.
-        NonLeafNodeInt *root = (NonLeafNodeInt *)rootPage;
-        root->spaceAvail = INTARRAYNONLEAFSIZE;
+        // NonLeafNodeInt *root = (NonLeafNodeInt *)rootPage;
 
+        PageId rootPageId;
+        Page *rootPage;
+
+        std::cout << "Rootpage Id initialize: " << rootPageId << std::endl;
+
+        bufMgr->allocPage(file, rootPageId, rootPage);
+        rootPageNum = rootPageId;
+        ((LeafNodeInt *)rootPage)->rightSibPageNo = Page::INVALID_NUMBER;
+        ((LeafNodeInt *)rootPage)->spaceAvail = INTARRAYLEAFSIZE;
+        ((LeafNodeInt *)rootPage)->parentId = -1;
+
+        bufMgr->unPinPage(file, rootPageId, true);
+        metaInfo->rootPageNo = rootPageId;
+        bufMgr->unPinPage(file, metaPageId, true);
         FileScan FS(relationName, bufMgr);
+
+        std::cout << "Rootpage Id after: " << rootPageId << std::endl;
+        std::cout << "Rootpage NO after: " << rootPageNum << std::endl;
+
         // get every tuple from the relation and load into the new file.
         RecordId rid;
         while (true) {  // get all rids that meet the predicate and break if the end of the file of relationName is reached.
@@ -112,8 +138,8 @@ BTreeIndex::BTreeIndex(const std::string &relationName,
             }
         }
         // finished with the meta page and root page and we did modify it.
-        bufMgr->unPinPage(file, headerPageNum, true);
-        bufMgr->unPinPage(file, rootPageNum, true);
+        // bufMgr->unPinPage(file, headerPageNum, true);
+        // bufMgr->unPinPage(file, rootPageNum, true);
     }
 }
 
@@ -156,7 +182,7 @@ void BTreeIndex::insertEntry(const void *key, const RecordId rid) {
 
         // case 1 - there hasn't been a split yet, ie, all nodes inserted into root node (leaf node)
         // call insert directly
-        insertIntoNonLeafNode(rootPageNum, key);
+        insertIntoLeafNode(rootPageNum, rid, key);
     } else {
         //! debug
         std::cout << "Regular insert: " << *((int *)key) << std::endl;
@@ -237,12 +263,22 @@ void BTreeIndex::insertIntoNonLeafNode(const PageId pid, const void *key) {
  * @param key			Key to insert, pointer to integer/double/char string
  */
 void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const void *key) {
+    //! debug
+    // std::cout << "Print self" << std::endl;
+    // bufMgr->printSelf();
+    std::cout << "" << std::endl;
+    std::cout << "insert into LEAF: " << *((int *)key) << std::endl;
+
     // declare and read the current page
     Page *curPage;
     bufMgr->readPage(file, pid, curPage);
 
     // initialize the leaf node what we're insert into
     LeafNodeInt *curNode = (LeafNodeInt *)curPage;
+
+    //! debug
+    std::cout << "Space left: " << curNode->spaceAvail << std::endl;
+
     // check if there is space within the current leafNode
     if (curNode->spaceAvail > 0) {
         // If there's room in this node
@@ -272,6 +308,11 @@ void BTreeIndex::insertIntoLeafNode(const PageId pid, const RecordId rid, const 
         // use up one aviliable space
         curNode->spaceAvail--;
         bufMgr->unPinPage(file, pid, true);
+
+        //! debug
+        std::cout << "Insert " << *((int *)key) << "success" << std::endl;
+        printArray(curNode->keyArray, INTARRAYLEAFSIZE);
+
     } else {
         // No room now, need to split and push up
         bufMgr->unPinPage(file, pid, false);
@@ -342,6 +383,8 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
     // ! debug
     std::cout << "Current level:  " << curNode->level << std::endl;
 
+    std::cout << "Current size:  " << numChild << std::endl;
+
     //  search throught the key list of the current node until we reach the leaf node
     for (int i = 0; i < numPage; i++) {
         //! debug
@@ -389,7 +432,10 @@ void BTreeIndex::searchNode(PageId &pid, const void *key, PageId currentId) {
             } else {
                 // means we found a spot, but they're not a leaf node, so we must go even furthur
                 bufMgr->unPinPage(file, currentId, false);
-                searchNode(pid, key, targetId);
+
+                // ! debug
+                std::cout << "Searching further : " << curNode->level << std::endl;
+                // searchNode(pid, key, targetId);
             }
         }
     }
@@ -464,7 +510,7 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
     // assign the largest value to the newNode
     if (INTARRAYNONLEAFSIZE % 2 != 0) {
         newNode->keyArray[INTARRAYNONLEAFSIZE / 2] = curNode->keyArray[INTARRAYNONLEAFSIZE - 1];
-        curNode->keyArray[INTARRAYNONLEAFSIZE / 2] = -1;
+        curNode->keyArray[INTARRAYNONLEAFSIZE - 1] = -1;
         newNode->spaceAvail--;
         newNode->pageNoArray[INTARRAYNONLEAFSIZE / 2] = curNode->pageNoArray[INTARRAYNONLEAFSIZE];
     }
@@ -565,6 +611,9 @@ void BTreeIndex::splitNonLeafNode(const PageId pid, const void *key) {
  * @param key   the void pointer of the key to be searched
  */
 void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId pid) {
+    // ! debug
+    std::cout << "Splitting LEAF node" << std::endl;
+
     // right biased
     // creates page of leaf node
     Page *leafPage;
@@ -572,6 +621,11 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
     bufMgr->readPage(file, pid, leafPage);
     // create node
     LeafNodeInt *curNode = (LeafNodeInt *)leafPage;
+
+    // ! debug
+    std::cout << "Current node BEFORE split" << std::endl;
+    printArray(curNode->keyArray, INTARRAYLEAFSIZE);
+
     // create new node to split into
     Page *newLeafPage;
     PageId newLeafPageId;
@@ -585,50 +639,66 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
         splitNode->keyArray[i] = curNode->keyArray[INTARRAYLEAFSIZE / 2 + i];
         splitNode->ridArray[i] = curNode->ridArray[INTARRAYLEAFSIZE / 2 + i];
 
-        // delete the values from the current Node after adding to split node
-        // ! We Actually don't have to delete them i don't think, since we keep track of the size, we will never use these values
-        // curNode->keyArray[INTARRAYLEAFSIZE / 2 + i] = NULL;
-        // curNode->ridArray[INTARRAYLEAFSIZE / 2 + i] = NULL;
+        curNode->keyArray[INTARRAYLEAFSIZE / 2 + i] = -1;
+        // curNode->ridArray[INTARRAYLEAFSIZE / 2 + i] = (RecordId)-1;
     }
+
+    splitNode->spaceAvail = INTARRAYLEAFSIZE / 2;
+    curNode->spaceAvail = INTARRAYLEAFSIZE / 2;
+
     // if the size of node
     // assign the largest value in node to the split Node
     // this will split the values to d, d+1
     if (INTARRAYLEAFSIZE % 2 != 0) {
         splitNode->keyArray[INTARRAYLEAFSIZE / 2] = curNode->keyArray[INTARRAYLEAFSIZE - 1];
+        curNode->keyArray[INTARRAYLEAFSIZE - 1] = -1;
+
         splitNode->ridArray[INTARRAYLEAFSIZE / 2] = curNode->ridArray[INTARRAYLEAFSIZE - 1];
-        splitNode->spaceAvail = INTARRAYLEAFSIZE / 2 - 1;
+        // splitNode->spaceAvail--;
     }
-    // if it is even, then the space avail is going to be the size of the intarray/2
-    else {
-        splitNode->spaceAvail = INTARRAYLEAFSIZE / 2;
-    }
+
+    //! Debug
+    std::cout << "AFTER SPLIT SPACE AVAILABLE" << std::endl;
+    std::cout << "CurNode space available: " << curNode->spaceAvail << std::endl;
+    std::cout << "splitNode space available: " << splitNode->spaceAvail << std::endl;
+
+    //! Debug
+    std::cout << "curNode start: " << curNode->keyArray[0] << std::endl;
+    // std::cout << "curNode ends: " << curNode->keyArray[INTARRAYNONLEAFSIZE - 1] << std::endl;
+    printArray(curNode->keyArray, INTARRAYLEAFSIZE);
+
+    //! Debug
+    std::cout << "splitNode start: " << splitNode->keyArray[0] << std::endl;
+    // std::cout << "newNode ends: " << newNode->keyArray[INTARRAYNONLEAFSIZE - 1] << std::endl;
+    printArray(splitNode->keyArray, INTARRAYLEAFSIZE);
+
     // update split node attributes
     splitNode->rightSibPageNo = curNode->rightSibPageNo;
     splitNode->parentId = curNode->parentId;
     // update all the attributes
     curNode->rightSibPageNo = newLeafPageId;
-    curNode->spaceAvail = INTARRAYLEAFSIZE - INTARRAYLEAFSIZE / 2;
-    bool addedNewNode = false;
+
     if (curNode->keyArray[INTARRAYLEAFSIZE / 2 - 1] >= *((int *)key)) {
         // call insert for the curNode
+        //! Debug
+        std::cout << "INSERT CURRENT LEAF " << pid << std::endl;
         insertIntoLeafNode(pid, rid, key);
     }
     // else call insert for the splitNode
     else {
+        //! Debug
+        std::cout << "INSERT NEW LEAF " << newLeafPageId << std::endl;
         insertIntoLeafNode(newLeafPageId, rid, key);
-        addedNewNode = true;
     }
+
     int pushedKey;
     // value to push up
     // right biased
-    if (addedNewNode) {
-        pushedKey = curNode->keyArray[INTARRAYLEAFSIZE / 2];
-    } else {
-        pushedKey = splitNode->keyArray[0];
-    }
+    pushedKey = splitNode->keyArray[0];
 
     // check if parentId is null, if so call create new root
-    if (curNode->parentId == -1) {
+    // if (curNode->parentId == -1) {
+    if (insertInRoot) {
         // current node pid
         PageId leftChild = pid;
         // new node created pageID
@@ -643,11 +713,11 @@ void BTreeIndex::splitLeafNode(const void *key, const RecordId rid, const PageId
         // declare parent page
         Page *parentPage;
         // read parent
-        bufMgr->readPage(this->file, curNode->parentId, parentPage);
+        bufMgr->readPage(file, curNode->parentId, parentPage);
         // create parent node
         NonLeafNodeInt *parentNode = (NonLeafNodeInt *)parentPage;
         // unpin parent
-        bufMgr->unPinPage(this->file, curNode->parentId, parentPage);
+        bufMgr->unPinPage(file, curNode->parentId, parentPage);
         // check if parent has space available
         if (parentNode->spaceAvail > 0) {
             // add newNode as child of parent node
